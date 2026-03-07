@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: jobs_scraping
+    database: "{{ env_var('DBT_GCP_PROJECT', 'fallback_schema') }}" # projects-portfolio-446806     # GCP project id
+    schema: jobs_scraping                   # BigQuery dataset
+    tables:
+      - name: linkedin_scraped_jobs
+      - name: serpapi_jobs
+        #freshness:
+          #warn_after: {count: 24, period: hour}
+          #error_after: {count: 48, period: hour}
+  - name: ao
+    database: "{{ env_var('DBT_GCP_PROJECT', 'fallback_schema') }}" 
+    schema: ao                   
+    tables:
+      - name: enrich_skills
+      - name: serpapi_query_versions
+
+    

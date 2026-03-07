@@ -1,0 +1,13 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile.prod
+      - -t
+      - us-central1-docker.pkg.dev/projects-portfolio-446806/jobs-scraping/jobs-data-platform:v2
+      - .
+images:
+  - us-central1-docker.pkg.dev/projects-portfolio-446806/jobs-scraping/jobs-data-platform:v2
+
+# To deploiy a new version, run: gcloud builds submit . 
