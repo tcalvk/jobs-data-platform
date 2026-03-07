@@ -1,0 +1,23 @@
+#airflow
+logs/
+airflow_home/
+*.pid
+*.log 
+
+#docker 
+downloads/
+**/__pycache__/
+*.pyc 
+
+#local env + secrets
+keys/
+include/airflow_variables.dev.json
+
+#editor/OS
+.DS_Store
+.vscode/
+.idea/
+
+#dev resources
+docker-compose.override.dev.yaml
+.venv
