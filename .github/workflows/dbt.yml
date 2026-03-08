@@ -2,10 +2,11 @@ name: dbt Core
 
 on:
   schedule:
-    - cron: "0 6 * * *"  # Daily at 6am UTC
+    - cron: "0 14 * * *"  # Daily at 14:00 UTC
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   dbt:
