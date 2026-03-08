@@ -71,8 +71,8 @@ def main(argv: list[str]) -> int:
     #   jobs_data_platform/ingest/serpapi.py   -> main()
     #   jobs_data_platform/ingest/google.py    -> main()
     TASKS: Dict[str, str] = {
-        "serpapi_get_jobs": "jobs_data_platform.ingest.serpapi_get_jobs",
-        "gcs_to_bq_load": "jobs_data_platform.ao.gcs_to_bq_load",
+        "serpapi_get_jobs": "dags.ingest.serpapi_get_jobs",
+        "gcs_to_bq_load": "dags.ao.gcs_to_bq_load",
         #"google_jobs": "jobs_data_platform.ingest.google_jobs",
         # add more here...
         # "linkedin": "jobs_data_platform.ingest.linkedin",
