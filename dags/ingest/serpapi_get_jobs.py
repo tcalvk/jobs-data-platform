@@ -1,3 +1,6 @@
+##############################################################################
+# imports and global vars # 
+
 from __future__ import annotations
 
 import itertools
@@ -6,7 +9,7 @@ import os
 import tempfile
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.error import HTTPError, URLError
 from urllib.parse import unquote_plus, urlencode
 from urllib.request import Request, urlopen
@@ -17,11 +20,13 @@ if os.getenv("ENV", "local") == "local":
     from dotenv import load_dotenv
     load_dotenv()
 
-
 SERPAPI_ENDPOINT = "https://serpapi.com/search.json"
 DEFAULT_MAX_JOBS = 250
 DEFAULT_SOURCE_NAME = "serpapi"
+SERPAPI_ACCOUNTS_TABLE = "projects-portfolio-446806.jobs_scraping.serpapi_accounts"
 
+##############################################################################
+# functions #
 
 def _now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -31,18 +36,12 @@ def _timestamp_slug() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-def _load_api_keys() -> List[str]:
-    keys_env = (
-        os.environ.get("SERPAPI_API_KEYS")
-        or os.environ.get("SERPAPI_API_KEY")
-        or os.environ.get("SERP_API_KEYS")
-        or os.environ.get("SERP_API_KEY")
-        or ""
-    )
-    keys = [k.strip() for k in keys_env.replace("\n", ",").split(",") if k.strip()]
+def _load_api_keys_from_bq(bq_client: bigquery.Client) -> List[str]:
+    query = f"SELECT key_string FROM `{SERPAPI_ACCOUNTS_TABLE}`"
+    rows = bq_client.query(query).result()
+    keys = [row["key_string"].strip() for row in rows if row["key_string"] and row["key_string"].strip()]
     if not keys:
-        # Fallback to the provided key if no env var is set.
-        keys = ["6331c30bd4f831bf2dcae8f2ef6a487406a129e514aa7700c611e15afcab8cec"]
+        raise ValueError(f"No API keys found in {SERPAPI_ACCOUNTS_TABLE}.")
     return keys
 
 
@@ -96,11 +95,15 @@ def _fetch_json_endpoint(json_endpoint: str, timeout_s: int = 30) -> Dict[str, A
 
 def _serpapi_fetch_with_retry(
     params: Dict[str, Any],
-    api_keys: Iterable[str],
+    api_keys: List[str],
+    exhausted_keys: set,
     max_retries: int = 3,
     backoff_s: float = 2.0,
 ) -> Dict[str, Any]:
-    key_cycle = itertools.cycle(api_keys)
+    available = [k for k in api_keys if k not in exhausted_keys]
+    if not available:
+        raise RuntimeError("All SerpApi keys have been exhausted.")
+    key_cycle = itertools.cycle(available)
     last_error: Optional[Exception] = None
     for attempt in range(1, max_retries + 1):
         api_key = next(key_cycle)
@@ -108,7 +111,15 @@ def _serpapi_fetch_with_retry(
             return _serpapi_request(params, api_key)
         except HTTPError as exc:
             last_error = exc
-            if exc.code in {429, 500, 502, 503, 504} and attempt < max_retries:
+            if exc.code == 429:
+                print(f"SerpApi key ending ...{api_key[-6:]} is exhausted (429); skipping for remainder of run.")
+                exhausted_keys.add(api_key)
+                available = [k for k in api_keys if k not in exhausted_keys]
+                if not available:
+                    raise RuntimeError("All SerpApi keys have been exhausted.") from exc
+                key_cycle = itertools.cycle(available)
+                continue
+            if exc.code in {500, 502, 503, 504} and attempt < max_retries:
                 time.sleep(backoff_s * attempt)
                 continue
             raise
@@ -161,6 +172,7 @@ def _build_params(row: Dict[str, Any], next_page_token: Optional[str]) -> Dict[s
 def _iter_jobs_for_query(
     row: Dict[str, Any],
     api_keys: List[str],
+    exhausted_keys: set,
     source_name: str,
     debug_query_id: Optional[int],
 ) -> List[Dict[str, Any]]:
@@ -178,7 +190,7 @@ def _iter_jobs_for_query(
             break
 
         params = _build_params(row, next_page_token)
-        response = _serpapi_fetch_with_retry(params, api_keys)
+        response = _serpapi_fetch_with_retry(params, api_keys, exhausted_keys)
         metadata = response.get("search_metadata", {}) or {}
         status = metadata.get("status")
         if status == "Error":
@@ -282,10 +294,11 @@ def main() -> None:
         gcs_prefix = ""
     debug_query_id_env = os.environ.get("DEBUG_QUERY_ID", "").strip()
     debug_query_id = int(debug_query_id_env) if debug_query_id_env.isdigit() else None
-    api_keys = _load_api_keys()
     table_id = _resolve_table_id()
 
     bq_client = bigquery.Client()
+    api_keys = _load_api_keys_from_bq(bq_client)
+    exhausted_keys: set = set()
     storage_client = storage.Client()
 
     query_rows = _fetch_query_versions(bq_client, table_id)
@@ -299,7 +312,7 @@ def main() -> None:
             print(f"Skipping query_id={row.get('query_id')} due to missing q.")
             continue
 
-        records = _iter_jobs_for_query(row, api_keys, source_name, debug_query_id)
+        records = _iter_jobs_for_query(row, api_keys, exhausted_keys, source_name, debug_query_id)
         timestamp = _timestamp_slug()
         if gcs_prefix:
             object_name = (
