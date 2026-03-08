@@ -1,0 +1,65 @@
+name: dbt Core
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # Daily at 6am UTC
+  push:
+    branches:
+      - main
+
+jobs:
+  dbt:
+    name: Run dbt
+    runs-on: ubuntu-latest
+
+    env:
+      DBT_PROJECT_DIR: ./dbt
+      DBT_PROFILES_DIR: ./dbt
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt-bigquery
+        run: pip install dbt-bigquery
+
+      - name: Write BigQuery keyfile
+        run: echo '${{ secrets.DBT_GCP_KEY }}' > /tmp/keyfile.json
+
+      - name: Write dbt profiles.yml
+        run: |
+          cat > ${{ env.DBT_PROJECT_DIR }}/profiles.yml << 'EOF'
+          default:
+            target: prod
+            outputs:
+              prod:
+                type: bigquery
+                method: service-account
+                project: ${{ vars.GCP_PROJECT_ID }}
+                dataset: ${{ vars.DBT_DATASET }}
+                keyfile: /tmp/keyfile.json
+                threads: 4
+                timeout_seconds: 3600
+                location: us-west1
+          EOF
+
+      - name: dbt deps
+        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        run: dbt deps --profiles-dir .
+
+      - name: dbt daily run
+        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        run: dbt run --select tag:daily --profiles-dir .
+
+      - name: dbt test
+        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        run: dbt test --profiles-dir .
+
+      - name: Clean up keyfile
+        if: always()
+        run: rm -f /tmp/keyfile.json
