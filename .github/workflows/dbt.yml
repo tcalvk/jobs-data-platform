@@ -12,10 +12,6 @@ jobs:
     name: Run dbt
     runs-on: ubuntu-latest
 
-    env:
-      DBT_PROJECT_DIR: ./dbt
-      DBT_PROFILES_DIR: ./dbt
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,7 +29,7 @@ jobs:
 
       - name: Write dbt profiles.yml
         run: |
-          cat > ${{ env.DBT_PROJECT_DIR }}/profiles.yml << 'EOF'
+          cat > ./dbt/profiles.yml << 'EOF'
           default:
             target: prod
             outputs:
@@ -49,15 +45,15 @@ jobs:
           EOF
 
       - name: dbt deps
-        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        working-directory: ./dbt
         run: dbt deps --profiles-dir .
 
       - name: dbt daily run
-        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        working-directory: ./dbt
         run: dbt run --select tag:daily --profiles-dir .
 
       - name: dbt test
-        working-directory: ${{ env.DBT_PROJECT_DIR }}
+        working-directory: ./dbt
         run: dbt test --profiles-dir .
 
       - name: Clean up keyfile
