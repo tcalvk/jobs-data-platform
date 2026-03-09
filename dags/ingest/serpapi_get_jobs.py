@@ -57,7 +57,7 @@ def _resolve_table_id() -> str:
     ).strip()
     if not project_id:
         raise ValueError("Missing BQ_TABLE_ID or BQ_PROJECT_ID/GOOGLE_CLOUD_PROJECT.")
-    return f"{project_id}.jobs_scraping.serpapi_query_versions"
+    return f"{project_id}.prod_dwh.serpapi_query_versions"
 
 
 def _fetch_query_versions(bq_client: bigquery.Client, table_id: str) -> List[Dict[str, Any]]:
