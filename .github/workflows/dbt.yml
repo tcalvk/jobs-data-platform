@@ -51,6 +51,10 @@ jobs:
         working-directory: ./dbt
         run: dbt deps --profiles-dir .
 
+      - name: dbt seed
+        working-directory: ./dbt
+        run: dbt seed --profiles-dir .
+
       - name: dbt daily run
         working-directory: ./dbt
         run: dbt run --select tag:daily --profiles-dir .
