@@ -5,9 +5,9 @@ steps:
       - -f
       - Dockerfile.prod
       - -t
-      - us-central1-docker.pkg.dev/projects-portfolio-446806/jobs-scraping/jobs-data-platform:v3
+      - us-central1-docker.pkg.dev/projects-portfolio-446806/jobs-scraping/jobs-data-platform:v4
       - .
 images:
-  - us-central1-docker.pkg.dev/projects-portfolio-446806/jobs-scraping/jobs-data-platform:v3
+  - us-central1-docker.pkg.dev/projects-portfolio-446806/jobs-scraping/jobs-data-platform:v4
 
 # To deploiy a new version, run: gcloud builds submit . 
