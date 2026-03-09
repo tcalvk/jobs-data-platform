@@ -42,3 +42,17 @@ models:
       +tags: ['daily']
     exports:
       +materialized: view
+
+seeds: 
+  jobs_data_platform:
+    +schema: seeds
+    serpapi_query_versions:
+      +column_types:
+        query_id: integer
+        q: string
+        location: string
+        hl: string
+        gl: string
+        max_jobs: integer
+        google_domain: string
+        active: integer
