@@ -27,20 +27,26 @@ clean-targets:         # directories to be removed by `dbt clean`
 models:
   jobs_data_platform:
     staging:
+      +schema: staging
       +materialized: view
     int:
+      +schema: int
       +materialized: table
       +tags: ['daily']
     marts:
+      +schema: marts
       +materialized: table
       +tags: ['daily']
     analysis:
+      +schema: analysis
       +materialized: table
       +tags: ['daily']
     reporting:
+      +schema: reporting
       +materialized: table
       +tags: ['daily']
     exports:
+      +schema: exports
       +materialized: view
 
 seeds: 
