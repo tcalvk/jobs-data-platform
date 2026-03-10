@@ -26,3 +26,6 @@ docker-compose.override.dev.yaml
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
+
+# streamlit_app
+streamlit_app/.secrets.toml
