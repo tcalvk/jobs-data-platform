@@ -5,3 +5,4 @@ dbt-core
 dbt-bigquery
 streamlit
 watchdog
+plotly

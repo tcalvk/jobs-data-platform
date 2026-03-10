@@ -28,4 +28,4 @@ dbt/dbt_packages/
 dbt/logs/
 
 # streamlit_app
-streamlit_app/.secrets.toml
+streamlit_app/.streamlit/
