@@ -3,3 +3,5 @@ google-cloud-storage
 python-dotenv
 dbt-core
 dbt-bigquery
+streamlit
+watchdog
