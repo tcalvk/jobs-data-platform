@@ -157,5 +157,5 @@ select
     ft.*,
     qv.q_plain_text as search_term
 from final_transform ft 
-left join {{ ref('stg_ao__serpapi_query_versions') }} qv 
+left join {{ ref('stg_seeds__serpapi_query_versions') }} qv
     using (query_id)
