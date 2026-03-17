@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: jobs_scraping
-    database: "{{ env_var('DBT_GCP_PROJECT', 'fallback_schema') }}" # projects-portfolio-446806     # GCP project id
+    database: "{{ env_var('DBT_GCP_PROJECT', 'dev-projects-portfolio') }}" # GCP project id
     schema: jobs_scraping                   # BigQuery dataset
     tables:
       - name: linkedin_scraped_jobs
@@ -11,7 +11,7 @@ sources:
           #warn_after: {count: 24, period: hour}
           #error_after: {count: 48, period: hour}
   - name: ao
-    database: "{{ env_var('DBT_GCP_PROJECT', 'fallback_schema') }}" 
+    database: "{{ env_var('DBT_GCP_PROJECT', 'dev-projects-portfolio') }}"
     schema: ao                   
     tables:
       - name: enrich_skills
