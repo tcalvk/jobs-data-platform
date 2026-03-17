@@ -5,6 +5,6 @@
     {%- elif custom_schema_name is none -%}
         {{ default_schema }}
     {%- else -%}
-        {{ default_schema }}_{{ custom_schema_name | trim }}
+        {{ custom_schema_name | trim }}
     {%- endif -%}
 {%- endmacro %}
