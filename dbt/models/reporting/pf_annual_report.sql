@@ -1,31 +1,43 @@
-with join_budgets as (
-    select 
-        date_trunc(t.date, month) as transaction_month,
-        t.category_id,
-        t.category,
-        t.transaction_type,
-        t.amount as amount,
+with budgets as (
+    select
+        b.category_id,
         b.amount as budget_amount,
-    from {{ ref('fact_pf_transactions') }} t 
-    left join {{ ref('dim_pf_budgets') }} b 
+        b.start_date,
+        b.end_date,
+        c.category_name,
+        c.category_type,
+    from {{ ref('dim_pf_budgets') }} b
+    left join {{ ref('dim_pf_categories') }} c
+        on b.category_id = c.category_id
+    where c.category_type = 'Annual Expense'
+),
+
+join_transactions as (
+    select
+        b.category_id,
+        b.category_name,
+        b.budget_amount,
+        b.end_date,
+        t.transaction_type,
+        t.amount
+    from budgets b
+    left join {{ ref('fact_pf_transactions') }} t
         on t.category_id = b.category_id
         and t.date >= b.start_date
         and t.date <= b.end_date
-    where 1=1 
-    and t.transaction_type = 'Annual Expense' 
 ),
 
 agg as (
-    select 
-        transaction_month,
-        date_trunc(transaction_month, year) as year,
+    select
+        left(cast(end_date as string), 4) as year,
         category_id,
-        category,
+        category_name,
+        budget_amount,
         transaction_type,
-        sum(amount) as total_amount,
-        max(budget_amount) as budget_amount
-    from join_budgets
-    group by 1,2,3,4,5
+        ifnull(sum(amount), 0) as total_amount,
+        round(budget_amount - ifnull(sum(amount), 0),2) as budget_remaining
+    from join_transactions
+    group by 1, 2, 3, 4, 5
 )
 
 select * from agg
