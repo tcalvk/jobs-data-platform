@@ -29,6 +29,7 @@ models:
     staging:
       +schema: staging
       +materialized: view
+      +tags: ['daily']
     int:
       +schema: int
       +materialized: table
@@ -48,6 +49,7 @@ models:
     exports:
       +schema: exports
       +materialized: view
+      +tags: ['daily']
 
 seeds: 
   jobs_data_platform:
