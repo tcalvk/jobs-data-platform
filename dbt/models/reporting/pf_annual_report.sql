@@ -25,6 +25,8 @@ join_transactions as (
         on t.category_id = b.category_id
         and t.date >= b.start_date
         and t.date <= b.end_date
+        -- only include transactions up to the end of the previous month (closed months)
+        and t.date <= date_sub(date_trunc(cast(current_timestamp() as date), month), interval 1 day)
 ),
 
 agg as (
