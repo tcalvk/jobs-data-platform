@@ -1,17 +1,33 @@
 with source as (
     
     select 
-        category_id,
-        amount,
-        date,
-        category,
-        account,
-        cast(transaction_id as string) as transaction_id,
-        transaction_type,
+        CategoryId,
+        Amount,
+        TransactionDate,
+        CategoryName,
+        AccountId,
+        Account_Name,
+        TransactionId,
+        Category_Type,
+        Tran_Type
+    from {{ source('personal_finance', 'manual_transactions') }}
+    
+),
+
+renamed as (
+
+    select 
+        CategoryId as category_id,
+        Amount as amount,
+        TransactionDate as date,
+        CategoryName as category,
+        Account_Name as account,
+        cast(TransactionId as string) as transaction_id,
+        Tran_Type as transaction_type,
         cast(null as string) as status,
         'manual_transactions' as source
-    from {{ source('personal_finance', 'manual_transactions') }}
+    from source
 
 )
 
-select * from source
+select * from renamed
