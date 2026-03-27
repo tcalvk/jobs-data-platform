@@ -1,0 +1,7 @@
+﻿service_id,desc,model,reminder_type,value_anchor,notification_offset
+1,Tire Rotation,Model3,relative_mileage,6250,500
+1,Tire Rotation,ModelY,relative_mileage,6250,500
+3,"Brake Service (Clean, Lubricate)",Model3,annual,15-Mar,0
+3,"Brake Service (Clean, Lubricate)",ModelY,annual,15-Mar,0
+8,Cabin air filter replacement,Model3,relative_days,365,0
+8,Cabin air filter replacement,ModelY,relative_days,365,0
