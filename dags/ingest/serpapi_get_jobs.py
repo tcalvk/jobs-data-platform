@@ -23,7 +23,7 @@ if os.getenv("ENV", "local") == "local":
 SERPAPI_ENDPOINT = "https://serpapi.com/search.json"
 DEFAULT_MAX_JOBS = 250
 DEFAULT_SOURCE_NAME = "serpapi"
-SERPAPI_ACCOUNTS_TABLE = "projects-portfolio-446806.jobs_scraping.serpapi_accounts"
+SERPAPI_ACCOUNTS_TABLE = "projects-portfolio-446806.seeds.serpapi_accounts"
 
 ##############################################################################
 # functions #
