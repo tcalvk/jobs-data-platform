@@ -109,6 +109,12 @@ select
         else null
     end as notify_at_miles,
 
+    -- Mileage-based: the mileage at which service is actually due
+    case when reminder_type = 'relative_mileage'
+        then coalesce(last_service_miles, 0) + value_anchor_int
+        else null
+    end as due_at_miles,
+
     -- Date-based: the date the notification fires
     case
         when reminder_type = 'relative_days'
