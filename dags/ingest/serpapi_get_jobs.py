@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import itertools
 import json
 import os
 import tempfile
@@ -37,7 +36,7 @@ def _timestamp_slug() -> str:
 
 
 def _load_api_keys_from_bq(bq_client: bigquery.Client) -> List[str]:
-    query = f"SELECT key_string FROM `{SERPAPI_ACCOUNTS_TABLE}`"
+    query = f"SELECT key_string FROM `{SERPAPI_ACCOUNTS_TABLE}` ORDER BY row_num ASC"
     rows = bq_client.query(query).result()
     keys = [row["key_string"].strip() for row in rows if row["key_string"] and row["key_string"].strip()]
     if not keys:
@@ -87,38 +86,48 @@ def _serpapi_request(params: Dict[str, Any], api_key: str, timeout_s: int = 30) 
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _fetch_json_endpoint(json_endpoint: str, timeout_s: int = 30) -> Dict[str, Any]:
-    req = Request(json_endpoint, headers={"Accept": "application/json"})
-    with urlopen(req, timeout=timeout_s) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+def _fetch_json_endpoint(json_endpoint: str, timeout_s: int = 30, max_retries: int = 3, backoff_s: float = 2.0) -> Dict[str, Any]:
+    last_error: Optional[Exception] = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            req = Request(json_endpoint, headers={"Accept": "application/json"})
+            with urlopen(req, timeout=timeout_s) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except (HTTPError, URLError) as exc:
+            last_error = exc
+            if attempt < max_retries:
+                time.sleep(backoff_s * attempt)
+                continue
+            raise
+    raise last_error
+
+
+class SearchesExhaustedError(Exception):
+    """Raised when an API key has exhausted its search quota (HTTP 429)."""
+    pass
 
 
 def _serpapi_fetch_with_retry(
     params: Dict[str, Any],
-    api_keys: List[str],
-    exhausted_keys: set,
+    api_key: str,
     max_retries: int = 3,
     backoff_s: float = 2.0,
 ) -> Dict[str, Any]:
-    available = [k for k in api_keys if k not in exhausted_keys]
-    if not available:
-        raise RuntimeError("All SerpApi keys have been exhausted.")
-    key_cycle = itertools.cycle(available)
+    """Attempt a SerpApi request with a single key, retrying transient errors.
+
+    Raises SearchesExhaustedError immediately on HTTP 429 so the caller can
+    rotate to the next ordered account without consuming retry slots.
+    """
     last_error: Optional[Exception] = None
     for attempt in range(1, max_retries + 1):
-        api_key = next(key_cycle)
         try:
             return _serpapi_request(params, api_key)
         except HTTPError as exc:
-            last_error = exc
             if exc.code == 429:
-                print(f"SerpApi key ending ...{api_key[-6:]} is exhausted (429); skipping for remainder of run.")
-                exhausted_keys.add(api_key)
-                available = [k for k in api_keys if k not in exhausted_keys]
-                if not available:
-                    raise RuntimeError("All SerpApi keys have been exhausted.") from exc
-                key_cycle = itertools.cycle(available)
-                continue
+                raise SearchesExhaustedError(
+                    f"SerpApi key ...{api_key[-6:]} searches exhausted (429)."
+                ) from exc
+            last_error = exc
             if exc.code in {500, 502, 503, 504} and attempt < max_retries:
                 time.sleep(backoff_s * attempt)
                 continue
@@ -178,87 +187,118 @@ def _iter_jobs_for_query(
 ) -> List[Dict[str, Any]]:
     query_id = row["query_id"]
     max_jobs = row["max_jobs"]
-    next_page_token: Optional[str] = None
-    collected: List[Dict[str, Any]] = []
-    page = 0
     delay_s = float(os.environ.get("REQUEST_DELAY_SECONDS", "0"))
     poll_attempts = int(os.environ.get("PROCESSING_POLL_ATTEMPTS", "6"))
     poll_delay_s = float(os.environ.get("PROCESSING_POLL_DELAY_SECONDS", "2"))
 
-    while True:
-        if max_jobs and len(collected) >= max_jobs:
-            break
+    available_keys = [k for k in api_keys if k not in exhausted_keys]
+    if not available_keys:
+        raise RuntimeError(f"[query_id={query_id}] All SerpApi accounts exhausted before starting.")
 
-        params = _build_params(row, next_page_token)
-        response = _serpapi_fetch_with_retry(params, api_keys, exhausted_keys)
-        metadata = response.get("search_metadata", {}) or {}
-        status = metadata.get("status")
-        if status == "Error":
-            print(f"[query_id={query_id}] SerpApi error: {metadata.get('error')}")
-            break
-        if status == "Processing":
-            json_endpoint = metadata.get("json_endpoint")
-            if json_endpoint:
-                for _ in range(poll_attempts):
-                    time.sleep(poll_delay_s)
-                    response = _fetch_json_endpoint(json_endpoint)
-                    metadata = response.get("search_metadata", {}) or {}
-                    status = metadata.get("status")
-                    if status != "Processing":
-                        break
-            if status == "Error":
-                print(f"[query_id={query_id}] SerpApi error: {metadata.get('error')}")
-                break
+    for api_key in available_keys:
+        print(f"[query_id={query_id}] Using SerpApi account ...{api_key[-6:]}.")
+        next_page_token: Optional[str] = None
+        collected: List[Dict[str, Any]] = []
+        page = 0
+        account_exhausted = False
 
-        jobs = response.get("jobs_results") or []
-        if not jobs:
-            if debug_query_id is not None and query_id == debug_query_id:
-                debug_payload = {
-                    "query_id": query_id,
-                    "params": params,
-                    "status": status,
-                    "search_metadata": response.get("search_metadata"),
-                    "search_parameters": response.get("search_parameters"),
-                    "serpapi_pagination": response.get("serpapi_pagination"),
-                    "jobs_results_len": len(jobs),
-                    "top_keys": list(response.keys()),
-                }
-                print(f"DEBUG empty jobs: {json.dumps(debug_payload, ensure_ascii=True)}")
-            if status == "Processing":
-                print(f"[query_id={query_id}] SerpApi still processing; no jobs returned.")
-            break
-
-        page += 1
-        for job in jobs:
+        while True:
             if max_jobs and len(collected) >= max_jobs:
                 break
-            collected.append(
-                {
-                    "source_name": source_name,
-                    "query_id": query_id,
-                    "q": row.get("q"),
-                    "location": row.get("location"),
-                    "hl": row.get("hl"),
-                    "gl": row.get("gl"),
-                    "google_domain": row.get("google_domain"),
-                    "fetched_at": _now_utc_iso(),
-                    "page": page,
-                    "serpapi_search_id": metadata.get("id"),
-                    "serpapi_json_endpoint": metadata.get("json_endpoint"),
-                    "job": job,
-                }
-            )
 
-        next_page_token = (
-            response.get("serpapi_pagination", {}) or {}
-        ).get("next_page_token")
-        if not next_page_token:
-            break
+            params = _build_params(row, next_page_token)
+            try:
+                response = _serpapi_fetch_with_retry(params, api_key)
+            except SearchesExhaustedError as exc:
+                print(f"[query_id={query_id}] {exc} Restarting query with next account.")
+                exhausted_keys.add(api_key)
+                account_exhausted = True
+                break
 
-        if delay_s:
-            time.sleep(delay_s)
+            metadata = response.get("search_metadata", {}) or {}
+            status = metadata.get("status")
+            if status == "Error":
+                print(f"[query_id={query_id}] SerpApi error on account ...{api_key[-6:]}: {metadata.get('error')}. Trying next account.")
+                account_exhausted = True
+                break
+            if status == "Processing":
+                json_endpoint = metadata.get("json_endpoint")
+                if json_endpoint:
+                    for _ in range(poll_attempts):
+                        time.sleep(poll_delay_s)
+                        response = _fetch_json_endpoint(json_endpoint)
+                        metadata = response.get("search_metadata", {}) or {}
+                        status = metadata.get("status")
+                        if status != "Processing":
+                            break
+                if status == "Error":
+                    print(f"[query_id={query_id}] SerpApi error on account ...{api_key[-6:]} after polling: {metadata.get('error')}. Trying next account.")
+                    account_exhausted = True
+                    break
+                if status == "Processing":
+                    print(f"[query_id={query_id}] SerpApi still processing after {poll_attempts} attempts on account ...{api_key[-6:]}. Trying next account.")
+                    account_exhausted = True
+                    break
 
-    return collected
+            jobs = response.get("jobs_results") or []
+            if not jobs:
+                if debug_query_id is not None and query_id == debug_query_id:
+                    debug_payload = {
+                        "query_id": query_id,
+                        "params": params,
+                        "status": status,
+                        "search_metadata": response.get("search_metadata"),
+                        "search_parameters": response.get("search_parameters"),
+                        "serpapi_pagination": response.get("serpapi_pagination"),
+                        "jobs_results_len": len(jobs),
+                        "top_keys": list(response.keys()),
+                    }
+                    print(f"DEBUG empty jobs: {json.dumps(debug_payload, ensure_ascii=True)}")
+                # Only treat empty first page as a retriable failure if we never
+                # successfully collected any jobs. A legitimately empty query
+                # (page > 0 exhausted results, or a clean first-page no-results)
+                # should not trigger account rotation.
+                if page == 0:
+                    print(f"[query_id={query_id}] No jobs on first page from account ...{api_key[-6:]}. Trying next account.")
+                    account_exhausted = True
+                break
+
+            page += 1
+            for job in jobs:
+                if max_jobs and len(collected) >= max_jobs:
+                    break
+                collected.append(
+                    {
+                        "source_name": source_name,
+                        "query_id": query_id,
+                        "q": row.get("q"),
+                        "location": row.get("location"),
+                        "hl": row.get("hl"),
+                        "gl": row.get("gl"),
+                        "google_domain": row.get("google_domain"),
+                        "fetched_at": _now_utc_iso(),
+                        "page": page,
+                        "serpapi_search_id": metadata.get("id"),
+                        "serpapi_json_endpoint": metadata.get("json_endpoint"),
+                        "job": job,
+                    }
+                )
+
+            next_page_token = (
+                response.get("serpapi_pagination", {}) or {}
+            ).get("next_page_token")
+            if not next_page_token:
+                break
+
+            if delay_s:
+                time.sleep(delay_s)
+
+        if not account_exhausted:
+            return collected
+
+    raise RuntimeError(
+        f"[query_id={query_id}] All SerpApi accounts exhausted; no results collected."
+    )
 
 
 def _upload_jsonl(
@@ -306,13 +346,21 @@ def main() -> None:
         print("No active query versions found.")
         return
 
+    failed_queries: List[str] = []
+
     for raw_row in query_rows:
         row = _normalize_query_row(raw_row)
         if not row.get("q"):
             print(f"Skipping query_id={row.get('query_id')} due to missing q.")
             continue
 
-        records = _iter_jobs_for_query(row, api_keys, exhausted_keys, source_name, debug_query_id)
+        try:
+            records = _iter_jobs_for_query(row, api_keys, exhausted_keys, source_name, debug_query_id)
+        except Exception as exc:
+            msg = f"[query_id={row.get('query_id')}] Failed to fetch jobs: {exc}"
+            print(msg)
+            failed_queries.append(msg)
+            continue
         timestamp = _timestamp_slug()
         if gcs_prefix:
             object_name = (
@@ -322,6 +370,12 @@ def main() -> None:
             object_name = f"{source_name}/{row['query_id']}/{timestamp}.jsonl"
         _upload_jsonl(storage_client, bucket_name, object_name, records)
         print(f"Uploaded {len(records)} records to gs://{bucket_name}/{object_name}")
+
+    if failed_queries:
+        raise RuntimeError(
+            f"{len(failed_queries)} query/queries failed to collect data:\n"
+            + "\n".join(failed_queries)
+        )
 
 
 if __name__ == "__main__":
