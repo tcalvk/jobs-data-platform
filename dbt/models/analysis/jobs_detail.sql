@@ -1,4 +1,4 @@
-select * except (job_description),
+select * except (job_description, search_location),
     case 
         when lower(job_title) like '%principal%' then 'Principal'
         when lower(job_title) like '%distinguished%' then 'Principal'
@@ -19,5 +19,6 @@ select * except (job_description),
         date_diff(date(current_timestamp()), date(last_seen_at_mst), day) >= 7,
         'Removed',
         'Active' 
-    ) as listing_status
+    ) as listing_status,
+    initcap(search_location) as search_location
 from {{ ref('dim_job_listings') }}
