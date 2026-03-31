@@ -9,3 +9,5 @@ query_id,q,location,hl,gl,max_jobs,google_domain,active
 8,marketing+manager,united states,en,us,250,google.com,1
 9,mechanical+engineer,united states,en,us,250,google.com,1
 10,product+manager,united states,en,us,250,google.com,1
+11,medical+assistant,"Utah, United States",en,us,250,google.com,1
+12,property+manager,"Utah, United States",en,us,250,google.com,1
