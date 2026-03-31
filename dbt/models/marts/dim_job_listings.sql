@@ -19,6 +19,7 @@
     'high_annual_pay_range',
     'job_description',
     'data_source',
+    'degree_requirement',
 ] %}
 
 with unioned as (
