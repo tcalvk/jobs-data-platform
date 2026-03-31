@@ -75,6 +75,7 @@ parse as (
     ,'LinkedIn' as data_source,
     cast(null as string) as company_name,
     'LinkedIn' as job_platform,
+    cast(null as string) as degree_requirement,
     from src
 ),
 
@@ -97,7 +98,8 @@ final_transform as (
         high_annual_pay_range,
         job_description,
         data_source,
-    from parse 
+        degree_requirement,
+    from parse
 )
 
 select * from final_transform
