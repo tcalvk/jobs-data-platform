@@ -12,6 +12,7 @@ downloads/
 #local env + secrets
 keys/
 include/airflow_variables.dev.json
+.env
 
 #editor/OS
 .DS_Store
