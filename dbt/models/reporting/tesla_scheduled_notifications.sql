@@ -89,6 +89,46 @@ vehicle_services as (
         and ls.service_id = t.service_id
     left join current_odo co on co.vehicle_id = v.vehicle_id
 
+),
+
+-- Annual due date, without the notification_offset subtraction.
+-- Factored out so the select and where clause can share one definition.
+with_due_dates as (
+
+    select
+        vs.*,
+        case when reminder_type = 'annual'
+            then case
+                when date(
+                    extract(year from current_date),
+                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
+                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
+                ) >= current_date
+                then date(
+                    extract(year from current_date),
+                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
+                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
+                )
+                when last_service_date >= date(
+                    extract(year from current_date),
+                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
+                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
+                )
+                then date(
+                    extract(year from current_date) + 1,
+                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
+                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
+                )
+                else date(
+                    extract(year from current_date),
+                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
+                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
+                )
+            end
+            else null
+        end as annual_due_date
+    from vehicle_services vs
+
 )
 
 select
@@ -123,91 +163,32 @@ select
                 interval value_anchor_int - notification_offset_int day
             )
         when reminder_type = 'annual'
-            then date_sub(
-                case
-                    when date(
-                        extract(year from current_date),
-                        extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                        extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                    ) >= current_date
-                    then date(
-                        extract(year from current_date),
-                        extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                        extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                    )
-                    -- If this year's date passed but service was completed after it, use next year
-                    when last_service_date >= date(
-                        extract(year from current_date),
-                        extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                        extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                    )
-                    then date(
-                        extract(year from current_date) + 1,
-                        extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                        extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                    )
-                    else date(
-                        extract(year from current_date),
-                        extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                        extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                    )
-                end,
-                interval notification_offset_int day
-            )
+            then date_sub(annual_due_date, interval notification_offset_int day)
         else null
     end as notify_on_date,
 
-from vehicle_services
+from with_due_dates
 
+-- Keep rows through the notify → due window so the notification job still
+-- sees them on and after the notify threshold. Dedup is handled downstream
+-- via the Firestore notification_log.
 where
-    -- Mileage-based: notification hasn't fired yet
     (
         reminder_type = 'relative_mileage'
-        and current_miles < coalesce(last_service_miles, 0) + value_anchor_int - notification_offset_int
+        and current_miles < coalesce(last_service_miles, 0) + value_anchor_int
     )
     or
-    -- Relative days: notification date is still in the future
     (
         reminder_type = 'relative_days'
-        and current_date < date_add(
-            coalesce(last_service_date, date_sub(current_date, interval value_anchor_int day)),
-            interval value_anchor_int - notification_offset_int day
+        and current_date <= date_add(
+            coalesce(last_service_date, current_date),
+            interval value_anchor_int day
         )
     )
     or
-    -- Annual: notification date is still in the future
     (
         reminder_type = 'annual'
-        and current_date < date_sub(
-            case
-                when date(
-                    extract(year from current_date),
-                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                ) >= current_date
-                then date(
-                    extract(year from current_date),
-                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                )
-                when last_service_date >= date(
-                    extract(year from current_date),
-                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                )
-                then date(
-                    extract(year from current_date) + 1,
-                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                )
-                else date(
-                    extract(year from current_date),
-                    extract(month from parse_date('%d-%b-%Y', concat(value_anchor, '-2000'))),
-                    extract(day from parse_date('%d-%b-%Y', concat(value_anchor, '-2000')))
-                )
-            end,
-            interval notification_offset_int day
-        )
+        and current_date <= annual_due_date
     )
 
 order by
