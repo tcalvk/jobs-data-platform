@@ -15,3 +15,4 @@ select
 from {{ ref('jobs_detail') }} jd 
 left join filter_skills fs
     using (job_id, data_source)
+where skill is not null 
