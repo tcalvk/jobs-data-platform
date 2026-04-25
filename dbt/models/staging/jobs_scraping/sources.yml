@@ -10,11 +10,4 @@ sources:
         #freshness:
           #warn_after: {count: 24, period: hour}
           #error_after: {count: 48, period: hour}
-  - name: ao
-    database: "{{ env_var('DBT_GCP_PROJECT', 'dev-projects-portfolio') }}"
-    schema: ao                   
-    tables:
-      - name: enrich_skills
-      - name: serpapi_query_versions
-
     
