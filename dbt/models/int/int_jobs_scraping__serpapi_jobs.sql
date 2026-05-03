@@ -115,11 +115,11 @@ final_transform as (
         job_thumbnail,
         posted_since,
         case
-            when posted_since is null then cast(created_at_mst as date)
+            when posted_since is null then cast(created_at_utc as date)
             when regexp_contains(lower(posted_since), r'hour') then
                 cast(
                     timestamp_sub(
-                        timestamp(created_at_mst),
+                        timestamp(created_at_utc),
                         interval safe_cast(regexp_extract(lower(posted_since), r'\\d+') as int64) hour
                     ) as date
                 )
@@ -138,7 +138,7 @@ final_transform as (
                     cast(created_at_mst as date),
                     interval safe_cast(regexp_extract(lower(posted_since), r'\\d+') as int64) month
                 )
-            else cast(created_at_mst as date)
+            else cast(created_at_utc as date)
         end as posted_date,
         schedule_type,
         apply_options_json,
