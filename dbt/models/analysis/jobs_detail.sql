@@ -40,7 +40,7 @@ with src as (
             'Removed',
             'Active' 
         ) as listing_status,
-        date_diff(coalesce(posted_date, cast(created_at_utc as date)), cast(last_seen_at_utc as date), day) as days_listed
+        date_diff(cast(last_seen_at_utc as date), coalesce(posted_date, cast(created_at_utc as date)), day) as days_listed
     from src
 )
 
