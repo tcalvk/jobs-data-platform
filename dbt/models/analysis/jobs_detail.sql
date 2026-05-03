@@ -16,8 +16,8 @@ with src as (
             else 'Entry'
         end as job_level,
         if(
-            date_diff(date(current_timestamp()), date(last_seen_at_mst), day) >= 7,
-             date_add(date(last_seen_at_mst), interval 1 day),
+            date_diff(date(current_timestamp()), date(last_seen_at_utc), day) >= 7,
+             date_add(date(last_seen_at_utc), interval 1 day),
              cast(null as date)
         ) as removed_date,
         initcap(search_location) as search_location,
@@ -40,7 +40,7 @@ with src as (
             'Removed',
             'Active' 
         ) as listing_status,
-        date_diff(posted_date, date(last_seen_at_mst), day) as days_listed
+        date_diff(coalesce(posted_date, cast(created_at_utc as date)), cast(last_seen_at_utc as date), day) as days_listed
     from src
 )
 

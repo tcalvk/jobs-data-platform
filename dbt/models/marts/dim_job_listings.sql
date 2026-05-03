@@ -58,7 +58,7 @@ dedupe as (
 
 select 
   d.*,
-  max(g.created_at_mst) as last_seen_at_mst
+  max(g.created_at_utc) as last_seen_at_utc
 from dedupe d 
 left join gen_surr_key g 
   using (job_id) 
