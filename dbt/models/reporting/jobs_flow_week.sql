@@ -10,7 +10,7 @@ with jobs_base as (
         job_platform,
         search_location,
         'New Jobs' as type,
-        count(job_id) as jobs_count
+        count(distinct job_id) as jobs_count
     from jobs_base
     group by all 
 )
@@ -22,7 +22,7 @@ with jobs_base as (
         job_platform,
         search_location,
         'Removed Jobs' as type,
-        count(job_id) as jobs_count
+        count(distinct job_id) as jobs_count
     from jobs_base
     where removed_date is not null
     group by all
