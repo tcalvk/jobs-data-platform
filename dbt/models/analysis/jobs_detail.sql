@@ -17,7 +17,7 @@ with src as (
         end as job_level,
         if(
             date_diff(date(current_timestamp()), date(last_seen_at_mst), day) >= 7,
-             dateadd(date(last_seen_at_mst), interval 1 day),
+             date_add(date(last_seen_at_mst), interval 1 day),
              cast(null as date)
         ) as removed_date,
         initcap(search_location) as search_location,
