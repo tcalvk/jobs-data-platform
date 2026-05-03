@@ -16,7 +16,7 @@ with src as (
             else 'Entry'
         end as job_level,
         if(
-            date_diff(date(current_timestamp()), date(last_seen_at_utc), day) >= 7,
+            date_diff(date(current_timestamp()), date(last_seen_at_utc), day) >= 21,
              date_add(date(last_seen_at_utc), interval 1 day),
              cast(null as date)
         ) as removed_date,
