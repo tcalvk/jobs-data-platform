@@ -16,7 +16,7 @@ with new_jobs as (
 )
 
 select *,
-    (jobs_count - previous_week_jobs_count) / nullif(previous_week_jobs_count, 0) * 100 as wow_percent_change
+    (jobs_count - previous_week_jobs_count) / nullif(previous_week_jobs_count, 0) as wow_percent_change
 from (
     select *,
         lag(jobs_count) over (
