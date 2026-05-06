@@ -1,24 +1,46 @@
-with search_term_months as (
-    select
-        search_term,
-        search_location,
-        count(distinct job_id) as active_jobs_count
-    from {{ ref('jobs_detail') }}
-    where listing_status = 'Active'
-    group by 1, 2
+with fact_detail as (
+    select 
+        search_term, 
+        search_location, 
+        job_id,
+        posted_date
+    from {{ ref('jobs_detail_day') }}
 )
-, agg as (
+
+, dim_detail as (
+    select 
+        job_id,
+        listing_status,
+        removed_date
+    from {{ ref('jobs_detail') }}
+)
+
+, search_term_months as (
     select
+        fd.search_term,
+        fd.search_location,
+        date_trunc(fd.posted_date, month) as month,
+        count(distinct fd.job_id) as active_jobs_count
+    from {{ ref('fact_detail') }} fd
+    left join dim_detail dd 
+        using (job_id) 
+    where dd.listing_status = 'Active'
+    group by 1, 2, 3
+)
+, _window as (
+    select
+        month,
         search_term,
         search_location,
         active_jobs_count,
         min(active_jobs_count) over () as min_active_jobs_count,
         max(active_jobs_count) over () as max_active_jobs_count
-    from search_terms
+    from search_term_months
     group by 1, 2, 3
 )
-, final as (
+, demand_score as (
     select
+        month,
         search_term,
         search_location,
         active_jobs_count,
@@ -29,8 +51,8 @@ with search_term_months as (
                 max_active_jobs_count - min_active_jobs_count
             ) * 100
         end as demand_score
-    from agg
+    from _window
 )
 
 select *
-from final
+from demand_score

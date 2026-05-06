@@ -53,7 +53,7 @@ dedupe as (
   from gen_surr_key
   qualify row_number() over (
     partition by job_id 
-    order by created_at_utc asc -- Get the first appearance of a given job for the dim table 
+    order by posted_date asc -- Get the first appearance of a given job for the dim table 
   ) = 1          
 )
 
