@@ -37,13 +37,14 @@ with unioned as (
 ),
 
 gen_surr_key as (
-  select 
-      {{ dbt_utils.generate_surrogate_key([
-              'platform_job_id',
-              'company_name',
-              'data_source'
-      ]) }} as job_id,
-      *
+  select *,
+    {{ dbt_utils.generate_surrogate_key([
+      'platform_job_id',
+      'company_name',
+      'data_source',
+      'search_term',
+      'search_location'
+    ]) }} as job_id
     from unioned
 ),
 
@@ -63,5 +64,3 @@ from dedupe d
 left join gen_surr_key g 
   using (job_id) 
 group by all 
-
-

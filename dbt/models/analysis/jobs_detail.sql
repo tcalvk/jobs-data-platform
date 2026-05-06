@@ -1,36 +1,34 @@
 with src as (
-    select * except (job_description, search_location),
-        case 
-            when lower(job_title) like '%principal%' then 'Principal'
-            when lower(job_title) like '%distinguished%' then 'Principal'
-            when lower(job_title) like '%lead%' then 'Lead'
-            when lower(job_title) like '%sr%' then 'Senior'
-            when lower(job_title) like '%senior%' then 'Senior'
-            when lower(job_title) like '%mid%' then 'Mid Level'
-            when lower(job_title) like '%staff%' then 'Staff'
-            when lower(job_title) like '% iii' then 'Mid Level'
-            when lower(job_title) like '% ii' then 'Mid Level'
-            when lower(job_title) like '% 3' then 'Mid Level'
-            when lower(job_title) like '%entry%' then 'Entry'
-            when lower(job_title) like '%junior%' then 'Entry'
-            else 'Entry'
-        end as job_level,
+    select * from {{ ref('dim_job_listings') }}
+)
+
+, detail as (
+    select * from {{ ref('jobs_detail_day') }}
+)
+
+, _join as (
+    select 
+        s.* except (job_description, search_location),
+        d.job_level,
+        d.search_location,
+        avg(d.avg_annual_pay_range) as avg_annual_pay_range
+    from src s
+    left join detail d 
+        using (job_id)
+    qualify row_number() over(
+        partition by d.job_id
+        order by d.created_at_utc asc 
+    )
+)
+
+, derive_removed_date as (
+    select *,
         if(
             date_diff(date(current_timestamp()), date(last_seen_at_utc), day) >= 21,
              date_add(date(last_seen_at_utc), interval 1 day),
              cast(null as date)
-        ) as removed_date,
-        initcap(search_location) as search_location,
-        -- This col's logic takes care of averaging if the low or high pay range is null (to ensure a true avg)
-        (COALESCE(low_annual_pay_range, 0) + COALESCE(high_annual_pay_range, 0)) / 
-        (
-            CASE 
-                WHEN low_annual_pay_range IS NULL AND high_annual_pay_range IS NULL THEN NULL 
-                ELSE (CASE WHEN low_annual_pay_range IS NULL THEN 0 ELSE 1 END) + 
-                    (CASE WHEN high_annual_pay_range IS NULL THEN 0 ELSE 1 END)
-            END
-        ) AS avg_annual_pay_range
-    from {{ ref('dim_job_listings') }}
+        ) as removed_date
+    from src 
 )
 
 , add_listing_info as (
@@ -41,7 +39,7 @@ with src as (
             'Active' 
         ) as listing_status,
         date_diff(cast(last_seen_at_utc as date), coalesce(posted_date, cast(created_at_utc as date)), day) as days_listed
-    from src
+    from derive_removed_date
 )
 
 select * from add_listing_info
