@@ -37,13 +37,14 @@ with unioned as (
 ),
 
 gen_surr_key as (
-  select 
-      {{ dbt_utils.generate_surrogate_key([
-              'platform_job_id',
-              'company_name',
-              'data_source'
-      ]) }} as job_id,
-      *
+  select *,
+    {{ dbt_utils.generate_surrogate_key([
+      'platform_job_id',
+      'company_name',
+      'data_source',
+      'search_term',
+      'search_location'
+    ]) }} as job_id
     from unioned
 ),
 
@@ -52,16 +53,8 @@ dedupe as (
   from gen_surr_key
   qualify row_number() over (
     partition by job_id 
-    order by created_at_utc asc -- Get the first appearance of a given job for the dim table 
+    order by posted_date asc -- Get the first appearance of a given job for the dim table 
   ) = 1          
 )
 
-select 
-  d.*,
-  max(g.created_at_utc) as last_seen_at_utc
-from dedupe d 
-left join gen_surr_key g 
-  using (job_id) 
-group by all 
-
-
+select * from dedupe
