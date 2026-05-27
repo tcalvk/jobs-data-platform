@@ -91,7 +91,7 @@ final_transform as (
         job_platform,
         job_location,
         posted_since,
-        posted_date,
+        posted_date_parsed,
         schedule_type,
         work_location,
         low_annual_pay_range,
