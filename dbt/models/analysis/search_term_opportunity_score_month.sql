@@ -1,8 +1,5 @@
 with job_detail as (
-    select 
-        job_id,
-        listing_status,
-        removed_date
+    select *
     from {{ ref('jobs_detail') }}
 )
 
