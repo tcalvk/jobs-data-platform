@@ -13,7 +13,7 @@
     'search_term',
     'job_location',
     'job_platform',
-    'posted_date',
+    'posted_date_parsed',
     'schedule_type',
     'low_annual_pay_range',
     'high_annual_pay_range',
@@ -53,7 +53,7 @@ dedupe as (
   from gen_surr_key
   qualify row_number() over (
     partition by job_id 
-    order by posted_date asc -- Get the first appearance of a given job for the dim table 
+    order by created_at_utc asc -- Get the first appearance of a given job for the dim table 
   ) = 1          
 )
 
