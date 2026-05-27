@@ -47,7 +47,7 @@ parse as (
                         then cast(date_add(cast(created_at_utc as date), interval - safe_cast( split( split(listing_details, '·') [SAFE_OFFSET(1)], ' ') [SAFE_OFFSET(2)] as int64) month) as date)
                     else null 
                 end  
-        end as posted_date 
+        end as posted_date_parsed 
         ,case 
             when lower(fit_level_preferences) like '%full%' then 'Full-time'
             when lower(fit_level_preferences) like '%part%' then 'Part-time'

@@ -13,7 +13,7 @@
     'search_term',
     'job_location',
     'job_platform',
-    'posted_date',
+    'posted_date_parsed',
     'schedule_type',
     'low_annual_pay_range',
     'high_annual_pay_range',

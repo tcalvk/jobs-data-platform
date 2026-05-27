@@ -91,6 +91,13 @@ pay_ranges as (
     from pay_annualized
 ),
 
+posted_since_parsed as (
+    select
+        *,
+        safe_cast(regexp_extract(lower(posted_since), r'\d+') as int64) as posted_since_quantity
+    from pay_ranges
+),
+
 final_transform as (
     select
         created_at_utc,
@@ -115,31 +122,29 @@ final_transform as (
         job_thumbnail,
         posted_since,
         case
-            when posted_since is null then cast(created_at_utc as date)
             when regexp_contains(lower(posted_since), r'hour') then
                 cast(
                     timestamp_sub(
                         timestamp(created_at_utc),
-                        interval safe_cast(regexp_extract(lower(posted_since), r'\\d+') as int64) hour
+                        interval posted_since_quantity hour
                     ) as date
                 )
             when regexp_contains(lower(posted_since), r'day') then
                 date_sub(
                     cast(created_at_mst as date),
-                    interval safe_cast(regexp_extract(lower(posted_since), r'\\d+') as int64) day
+                    interval posted_since_quantity day
                 )
             when regexp_contains(lower(posted_since), r'week') then
                 date_sub(
                     cast(created_at_mst as date),
-                    interval safe_cast(regexp_extract(lower(posted_since), r'\\d+') as int64) week
+                    interval posted_since_quantity week
                 )
             when regexp_contains(lower(posted_since), r'month') then
                 date_sub(
                     cast(created_at_mst as date),
-                    interval safe_cast(regexp_extract(lower(posted_since), r'\\d+') as int64) month
+                    interval posted_since_quantity month
                 )
-            else cast(created_at_utc as date)
-        end as posted_date,
+        end as posted_date_parsed,
         schedule_type,
         apply_options_json,
         extensions_json,
@@ -157,7 +162,7 @@ final_transform as (
             else 'No Degree'
         end as degree_requirement,
         'Serpapi' as data_source,
-    from pay_ranges
+    from posted_since_parsed
 )
 
 select 
