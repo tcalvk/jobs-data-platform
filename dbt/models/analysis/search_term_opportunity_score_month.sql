@@ -1,13 +1,4 @@
-with fact_detail as (
-    select 
-        search_term, 
-        search_location, 
-        job_id,
-        posted_date
-    from {{ ref('jobs_detail_day') }}
-)
-
-, dim_detail as (
+with job_detail as (
     select 
         job_id,
         listing_status,
@@ -17,14 +8,12 @@ with fact_detail as (
 
 , search_term_months as (
     select
-        fd.search_term,
-        fd.search_location,
-        date_trunc(fd.posted_date, month) as month, -- structure opportunity scoring by month, so that it's not oversensitive, but still adjusts over time
-        count(distinct fd.job_id) as active_jobs_count
-    from fact_detail fd
-    left join dim_detail dd 
-        using (job_id) 
-    where dd.listing_status = 'Active'
+        search_term,
+        search_location,
+        date_trunc(posted_date, month) as month, -- structure opportunity scoring by month, so that it's not oversensitive, but still adjusts over time
+        count(distinct job_id) as active_jobs_count
+    from job_detail
+    where listing_status = 'Active'
     group by 1, 2, 3
 )
 
