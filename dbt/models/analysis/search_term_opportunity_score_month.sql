@@ -197,6 +197,8 @@ with job_detail as (
         smoothed_monthly_growth_rate,
         weighted_growth,
         case
+            when new_jobs_count = 0
+                and prior_month_new_jobs_count = 0 then 0
             when max(weighted_growth) over (
                 partition by month_start_date, search_location
             ) = min(weighted_growth) over (
