@@ -94,7 +94,14 @@ with job_detail as (
                 partition by month_start_date, search_location
             ) = min(log_active_jobs_count) over (
                 partition by month_start_date, search_location
-            ) then 100
+            ) then case
+                -- All-zero locations should not earn full demand credit solely because
+                -- every search term tied at zero active jobs.
+                when max(active_jobs_count) over (
+                    partition by month_start_date, search_location
+                ) = 0 then 0
+                else 100
+            end
             else safe_divide(
                 log_active_jobs_count - min(log_active_jobs_count) over (
                     partition by month_start_date, search_location
@@ -194,7 +201,17 @@ with job_detail as (
                 partition by month_start_date, search_location
             ) = min(weighted_growth) over (
                 partition by month_start_date, search_location
-            ) then 100
+            ) then case
+                -- All-zero current and prior activity should not earn full growth
+                -- credit solely because every search term tied at zero growth.
+                when max(new_jobs_count) over (
+                    partition by month_start_date, search_location
+                ) = 0
+                    and max(prior_month_new_jobs_count) over (
+                        partition by month_start_date, search_location
+                    ) = 0 then 0
+                else 100
+            end
             else least(100, greatest(0, safe_divide(
                 weighted_growth - min(weighted_growth) over (
                     partition by month_start_date, search_location
