@@ -17,7 +17,8 @@ with src as (
 )
 , joined as (
     select
-        s.* except (low_annual_pay_range, high_annual_pay_range),
+        s.* except (low_annual_pay_range, high_annual_pay_range, search_location),
+        initcap(search_location) as search_location,
         a.avg_annual_pay_range,
         a.first_seen_at_utc,
         a.last_seen_at_utc
