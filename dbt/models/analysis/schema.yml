@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: search_term_opportunity_score_month
+    description: >
+      Monthly search-term/location opportunity scoring table. Component scores are
+      normalized to 0-100 by search location within each month, then combined into
+      an opportunity score and tier.
+    columns:
+      - name: month_start_date
+        description: First day of the scoring month.
+        tests:
+          - not_null
+      - name: month
+        description: Alias for month_start_date for downstream consumers.
+        tests:
+          - not_null
+      - name: search_term
+        description: Search term represented by the opportunity score row.
+        tests:
+          - not_null
+      - name: search_location
+        description: Search location represented by the opportunity score row.
+        tests:
+          - not_null
+      - name: opportunity_score
+        description: Weighted, re-normalized opportunity score across available components.
+        tests:
+          - not_null
+      - name: opportunity_tier
+        description: Business-friendly opportunity tier derived from opportunity_score.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - Strong Opportunity
+                  - Good Opportunity
+                  - Moderate Opportunity
+                  - Weak Opportunity
+                  - Insufficient Data
