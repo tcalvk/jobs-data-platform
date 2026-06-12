@@ -1,13 +1,13 @@
 version: 2
 
 models:
-  - name: jobs_detail_day_opportunity_report
+  - name: jobs_detail_opportunity_report
     description: >
-      Daily job detail reporting model with monthly search-term/location opportunity
-      score and tier appended. This preserves every field from jobs_detail_day and
-      repeats the monthly opportunity metrics across matching daily detail rows.
+      Job detail reporting model with monthly search-term/location opportunity
+      score and tier appended. This preserves every field from jobs_detail and
+      assigns the monthly opportunity metrics based on the job posted date.
     columns:
       - name: opportunity_score
-        description: Monthly opportunity score for the row's search term, search location, and created-at month.
+        description: Monthly opportunity score for the row's search term, search location, and posted-date month.
       - name: opportunity_tier
-        description: Monthly opportunity tier for the row's search term, search location, and created-at month.
+        description: Monthly opportunity tier for the row's search term, search location, and posted-date month.
