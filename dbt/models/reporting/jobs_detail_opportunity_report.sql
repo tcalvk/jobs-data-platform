@@ -1,7 +1,7 @@
-with jobs_detail_day as (
+with jobs_detail as (
 
     select *
-    from {{ ref('jobs_detail_day') }}
+    from {{ ref('jobs_detail') }}
 
 )
 
@@ -20,15 +20,15 @@ with jobs_detail_day as (
 , joined as (
 
     select
-        jobs_detail_day.*,
+        jobs_detail.*,
         search_term_opportunity_score_month.opportunity_score,
         search_term_opportunity_score_month.opportunity_tier
-    from jobs_detail_day
+    from jobs_detail
     left join search_term_opportunity_score_month
-        on date_trunc(date(jobs_detail_day.created_at_mst), month)
+        on date_trunc(jobs_detail.posted_date, month)
             = search_term_opportunity_score_month.month_start_date
-        and jobs_detail_day.search_term = search_term_opportunity_score_month.search_term
-        and jobs_detail_day.search_location = search_term_opportunity_score_month.search_location
+        and jobs_detail.search_term = search_term_opportunity_score_month.search_term
+        and jobs_detail.search_location = search_term_opportunity_score_month.search_location
 
 )
 

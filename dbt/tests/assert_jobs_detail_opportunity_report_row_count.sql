@@ -1,14 +1,14 @@
 with base_count as (
 
     select count(*) as row_count
-    from {{ ref('jobs_detail_day') }}
+    from {{ ref('jobs_detail') }}
 
 )
 
 , report_count as (
 
     select count(*) as row_count
-    from {{ ref('jobs_detail_day_opportunity_report') }}
+    from {{ ref('jobs_detail_opportunity_report') }}
 
 )
 
