@@ -36,7 +36,4 @@ with jobs_detail as (
 )
 
 select * from joined
-
-
-
-
+where skill is not null 
