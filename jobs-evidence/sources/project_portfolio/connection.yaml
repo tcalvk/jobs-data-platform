@@ -1,0 +1,7 @@
+# This file was automatically generated
+name: project_portfolio
+type: bigquery
+options:
+  enable_connected_sheets: true
+  authenticator: service-account
+  location: us-west1
