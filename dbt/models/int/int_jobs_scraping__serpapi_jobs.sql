@@ -29,6 +29,7 @@ parsed as (
         JSON_VALUE(job_data, '$.job.location') as job_location,
         JSON_VALUE(job_data, '$.job.via') as job_platform,
         JSON_VALUE(job_data, '$.job.share_link') as job_share_link,
+        JSON_VALUE(job_data, '$.job.source_link') as source_link,
         JSON_VALUE(job_data, '$.job.thumbnail') as job_thumbnail,
         JSON_VALUE(job_data, '$.job.detected_extensions.posted_at') as posted_since,
         JSON_VALUE(job_data, '$.job.detected_extensions.schedule_type') as schedule_type,
@@ -119,6 +120,7 @@ final_transform as (
         job_location,
         job_platform,
         job_share_link,
+        source_link,
         job_thumbnail,
         posted_since,
         case

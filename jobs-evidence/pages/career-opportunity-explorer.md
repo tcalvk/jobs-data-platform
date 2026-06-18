@@ -188,6 +188,19 @@ hide_breadcrumbs: true
     cursor: pointer;
   }
 
+  #active-jobs-detail :global(th:first-child),
+  #active-jobs-detail :global(td:first-child) {
+    width: 25rem;
+    min-width: 25rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #active-jobs-detail :global(th:first-child) {
+    resize: horizontal;
+    overflow: auto;
+  }
+
   @media (prefers-color-scheme: dark) {
     #active-jobs-detail {
       background: #09090b;
