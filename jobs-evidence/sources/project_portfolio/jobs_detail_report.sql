@@ -57,24 +57,25 @@ with state_centers as (
 ), jobs as (
 
     select
-        cast(job_id as string) as job_id,
+        created_at_utc,
         nullif(trim(job_title), '') as job_title,
         nullif(trim(company_name), '') as company_name,
         nullif(trim(search_term), '') as search_term,
-        nullif(trim(search_location), '') as search_location,
         nullif(trim(job_location), '') as job_location,
         coalesce(nullif(trim(job_platform), ''), data_source, 'Unknown') as job_platform,
-        coalesce(nullif(trim(listing_status), ''), 'Unknown') as listing_status,
-        cast(posted_date as date) as posted_date,
-        date(created_at_mst) as first_seen_date,
-        safe_cast(days_listed as int64) as days_listed,
+        nullif(trim(schedule_type), '') as schedule_type,
+        data_source,
+        nullif(trim(degree_requirement), '') as degree_requirement,
+        job_id,
+        nullif(trim(search_location), '') as search_location,
         safe_cast(avg_annual_pay_range as float64) as avg_annual_pay_range,
+        cast(removed_date as date) as removed_date,
+        cast(posted_date as date) as posted_date,
+        coalesce(nullif(trim(listing_status), ''), 'Unknown') as listing_status,
+        safe_cast(days_listed as int64) as days_listed,
         safe_cast(opportunity_score as float64) as opportunity_score,
         opportunity_tier
     from `projects-portfolio-446806.reporting.jobs_detail_report`
-    where job_id is not null
-        and search_term is not null
-        and posted_date is not null
 
 ), state_keyed as (
 
