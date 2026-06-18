@@ -1,0 +1,14 @@
+name: Netlify Build Daily
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 14 * * *' # Once a day around 7am MT (2pm UTC)
+jobs:
+  build:
+    name: Request Netlify Webhook
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST to Build Hook
+        env:
+          BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: curl -X POST -d {} $BUILD_HOOK
