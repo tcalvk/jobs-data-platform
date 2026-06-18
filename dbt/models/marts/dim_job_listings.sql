@@ -20,6 +20,7 @@
     'job_description',
     'data_source',
     'degree_requirement',
+    'source_link',
 ] %}
 
 with unioned as (
