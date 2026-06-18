@@ -75,7 +75,8 @@ with state_centers as (
         safe_cast(days_listed as int64) as days_listed,
         safe_cast(opportunity_score as float64) as opportunity_score,
         opportunity_tier,
-        job_level
+        job_level,
+        source_link
     from `projects-portfolio-446806.reporting.jobs_detail_report`
 
 ), state_keyed as (

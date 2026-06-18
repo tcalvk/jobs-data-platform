@@ -61,9 +61,11 @@ hide_breadcrumbs: true
   .filter-actions {
     display: flex;
     justify-content: flex-end;
+    gap: 0.5rem;
     margin: -0.55rem 0 1.2rem 0;
   }
 
+  .reset-filters-button,
   .more-filters-toggle {
     border: 1px solid #cbd5e1;
     border-radius: 0.375rem;
@@ -76,6 +78,8 @@ hide_breadcrumbs: true
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
+  .reset-filters-button:hover,
+  .reset-filters-button:focus-visible,
   .more-filters-toggle:hover,
   .more-filters-toggle:focus-visible {
     border-color: #2563eb;
@@ -190,15 +194,32 @@ hide_breadcrumbs: true
 
   #active-jobs-detail :global(th:first-child),
   #active-jobs-detail :global(td:first-child) {
-    width: 25rem;
-    min-width: 25rem;
+    width: 18rem;
+    min-width: 18rem;
+    max-width: 18rem;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  #active-jobs-detail :global(th:first-child) {
-    resize: horizontal;
-    overflow: auto;
+  #active-jobs-detail :global(.apply-link-button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.35rem;
+    background: #2563eb;
+    color: #ffffff !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.35rem 0.65rem;
+    text-decoration: none !important;
+    white-space: nowrap;
+  }
+
+  #active-jobs-detail :global(.apply-link-button:hover),
+  #active-jobs-detail :global(.apply-link-button:focus-visible) {
+    background: #1d4ed8;
+    outline: none;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -246,6 +267,7 @@ hide_breadcrumbs: true
 
     #active-jobs-detail :global(button),
     .drilldown-close,
+    .reset-filters-button,
     .more-filters-toggle {
       background: #18181b;
       border-color: #3f3f46;
@@ -432,6 +454,9 @@ order by ordinal
 </div>
 
 <div class="filter-actions">
+  <button class="reset-filters-button" type="button" on:click={() => globalThis.location.assign(globalThis.location.pathname)}>
+    Reset Filters
+  </button>
   <button class="more-filters-toggle" type="button" on:click={() => showMoreFilters = !showMoreFilters} aria-expanded={showMoreFilters}>
     {showMoreFilters ? 'Hide More Filters' : 'More Filters'}
   </button>
@@ -550,6 +575,10 @@ where posted_date between cast('${inputs.posted_window.start}' as date) and cast
 ```sql active_jobs_detail
 select
     job_title,
+    case
+        when source_link is not null then '<a class="apply-link-button markdown" href="' || replace(source_link, '"', '%22') || '" target="_blank" rel="noopener noreferrer">Apply</a>'
+        else null
+    end as apply_link,
     company_name,
     search_term,
     job_location,
@@ -641,7 +670,25 @@ limit 1000
     <div class="section-title">Active Jobs Detail</div>
     <button class="drilldown-close" type="button" on:click={() => showActiveJobsDetail = false}>Close</button>
   </div>
-  <DataTable data={active_jobs_detail} rows=25 search sort="posted_date desc" />
+  <DataTable data={active_jobs_detail} rows=25 search sort="posted_date desc">
+    <Column id=job_title title="Job Title" wrap=true />
+    <Column id=apply_link title="Apply Link" contentType=html align=center />
+    <Column id=company_name title="Company Name" />
+    <Column id=search_term title="Search Term" />
+    <Column id=job_location title="Job Location" />
+    <Column id=search_location title="Search Location" />
+    <Column id=job_platform title="Job Platform" />
+    <Column id=schedule_type title="Schedule Type" />
+    <Column id=job_level title="Job Level" />
+    <Column id=degree_requirement title="Degree Requirement" />
+    <Column id=avg_annual_pay_range title="Avg Annual Pay Range" fmt=usd0 />
+    <Column id=posted_date title="Posted Date" />
+    <Column id=days_listed title="Days Listed" fmt=num0 />
+    <Column id=opportunity_score title="Opportunity Score" fmt=num1 />
+    <Column id=opportunity_tier title="Opportunity Tier" />
+    <Column id=data_source title="Data Source" />
+    <Column id=job_id title="Job ID" />
+  </DataTable>
 </div>
 {/if}
 
