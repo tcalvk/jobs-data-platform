@@ -74,7 +74,8 @@ with state_centers as (
         coalesce(nullif(trim(listing_status), ''), 'Unknown') as listing_status,
         safe_cast(days_listed as int64) as days_listed,
         safe_cast(opportunity_score as float64) as opportunity_score,
-        opportunity_tier
+        opportunity_tier,
+        job_level
     from `projects-portfolio-446806.reporting.jobs_detail_report`
 
 ), state_keyed as (

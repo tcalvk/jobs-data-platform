@@ -10,6 +10,7 @@ hide_breadcrumbs: true
   import JobTitleTokenInput from '../../components/JobTitleTokenInput.svelte';
 
   let showActiveJobsDetail = false;
+  let showMoreFilters = false;
 </script>
 
 <style>
@@ -37,7 +38,7 @@ hide_breadcrumbs: true
     margin: 0 !important;
   }
 
-  .filter-grid :global(button) {
+  .filter-grid :global(.inline-block button) {
     width: 100%;
     min-width: 0 !important;
     max-width: 100%;
@@ -50,11 +51,43 @@ hide_breadcrumbs: true
     border-color: #cbd5e1 !important;
   }
 
-  .filter-grid :global(label),
-  .filter-grid :global(p),
-  .filter-grid :global(span),
+  .filter-grid :global(.inline-block label),
+  .filter-grid :global(.inline-block p),
+  .filter-grid :global(.inline-block span),
   .filter-grid :global(input) {
     color: #263238 !important;
+  }
+
+  .filter-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin: -0.55rem 0 1.2rem 0;
+  }
+
+  .more-filters-toggle {
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    background: #ffffff;
+    color: #263238;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.35rem 0.7rem;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  }
+
+  .more-filters-toggle:hover,
+  .more-filters-toggle:focus-visible {
+    border-color: #2563eb;
+    outline: none;
+  }
+
+  .more-filter-grid {
+    margin-top: -0.35rem;
+  }
+
+  .filters-hidden {
+    display: none;
   }
 
   .filter-grid :global(input) {
@@ -199,7 +232,8 @@ hide_breadcrumbs: true
     }
 
     #active-jobs-detail :global(button),
-    .drilldown-close {
+    .drilldown-close,
+    .more-filters-toggle {
       background: #18181b;
       border-color: #3f3f46;
       color: #ffffff;
@@ -325,6 +359,44 @@ from options
 order by ordinal
 ```
 
+```sql job_levels
+with options as (
+    select
+        job_level,
+        job_level as job_level_label,
+        row_number() over (order by job_level) as option_rank
+    from (
+        select distinct job_level
+        from project_portfolio.jobs_detail_report
+        where job_level is not null
+    )
+)
+select 'All' as job_level, '𝐀𝐥𝐥 Values' as job_level_label, 0 as ordinal
+union all
+select job_level, job_level_label, option_rank as ordinal
+from options
+order by ordinal
+```
+
+```sql degree_requirements
+with options as (
+    select
+        degree_requirement,
+        degree_requirement as degree_requirement_label,
+        row_number() over (order by degree_requirement) as option_rank
+    from (
+        select distinct degree_requirement
+        from project_portfolio.jobs_detail_report
+        where degree_requirement is not null
+    )
+)
+select 'All' as degree_requirement, '𝐀𝐥𝐥 Values' as degree_requirement_label, 0 as ordinal
+union all
+select degree_requirement, degree_requirement_label, option_rank as ordinal
+from options
+order by ordinal
+```
+
 ```sql job_title_match_methods
 select 'contains' as match_method, 'Contains' as match_method_label, 0 as ordinal
 union all
@@ -342,6 +414,17 @@ order by ordinal
   <Dropdown data={listing_statuses} name=listing_status value=listing_status label=listing_status_label order=ordinal title="Listing Status" defaultValue="All" />
   <DateRange name=posted_window data={available_dates} dates=posted_date defaultValue="Last 90 Days" />
   <Dropdown data={search_locations} name=search_location value=search_location label=search_location_label order=ordinal title="Search Location" defaultValue="United States" />
+  <Dropdown data={job_levels} name=job_level value=job_level label=job_level_label order=ordinal title="Job Level" defaultValue="All" />
+  <Dropdown data={degree_requirements} name=degree_requirement value=degree_requirement label=degree_requirement_label order=ordinal title="Degree Requirement" defaultValue="All" />
+</div>
+
+<div class="filter-actions">
+  <button class="more-filters-toggle" type="button" on:click={() => showMoreFilters = !showMoreFilters} aria-expanded={showMoreFilters}>
+    {showMoreFilters ? 'Hide More Filters' : 'More Filters'}
+  </button>
+</div>
+
+<div class="filter-grid more-filter-grid" class:filters-hidden={!showMoreFilters}>
   <Dropdown data={job_title_match_methods} name=job_title_match_method value=match_method label=match_method_label order=ordinal title="Job Title Match" defaultValue="contains" />
   <JobTitleTokenInput name="job_title_filter" title="Job Title" />
   <Dropdown data={job_title_match_methods} name=company_name_match_method value=match_method label=match_method_label order=ordinal title="Company Name Match" defaultValue="contains" />
@@ -359,6 +442,8 @@ select
 from project_portfolio.jobs_detail_report
 where posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
   and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
+  and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
+  and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
   and (
       trim(${inputs.job_title_filter.sql}) = ''
       or (
@@ -458,6 +543,7 @@ select
     search_location,
     job_platform,
     schedule_type,
+    job_level,
     degree_requirement,
     avg_annual_pay_range,
     posted_date,
@@ -470,6 +556,8 @@ from project_portfolio.jobs_detail_report
 where listing_status = 'Active'
   and posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
   and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
+  and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
+  and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
   and (
       trim(${inputs.job_title_filter.sql}) = ''
       or (
@@ -551,6 +639,8 @@ select
 from project_portfolio.jobs_detail_report
 where posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
   and opportunity_score is not null
+  and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
+  and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
   and (
       trim(${inputs.job_title_filter.sql}) = ''
       or (
@@ -641,6 +731,8 @@ select
 from project_portfolio.jobs_detail_report
 where posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
   and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
+  and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
+  and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
   and (
       trim(${inputs.job_title_filter.sql}) = ''
       or (
@@ -750,6 +842,8 @@ with binned as (
       and days_listed < 32
       and posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
       and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
+      and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
+      and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
       and (
           trim(${inputs.job_title_filter.sql}) = ''
           or (
@@ -848,6 +942,8 @@ where lat is not null
   and long is not null
   and posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
   and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
+  and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
+  and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
   and (
       trim(${inputs.job_title_filter.sql}) = ''
       or (
