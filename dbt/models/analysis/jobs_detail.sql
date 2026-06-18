@@ -42,15 +42,30 @@ with src as (
     from joined 
 )
 
-, add_listing_info as (
+, add_dims as (
     select *,
         if(
             removed_date is not null,  
             'Removed',
             'Active' 
         ) as listing_status,
-        date_diff(cast(last_seen_at_utc as date), coalesce(posted_date, cast(created_at_utc as date)), day) as days_listed
+        date_diff(cast(last_seen_at_utc as date), coalesce(posted_date, cast(created_at_utc as date)), day) as days_listed,
+        case 
+            when lower(job_title) like '%principal%' then 'Principal'
+            when lower(job_title) like '%distinguished%' then 'Principal'
+            when lower(job_title) like '%lead%' then 'Lead'
+            when lower(job_title) like '%sr%' then 'Senior'
+            when lower(job_title) like '%senior%' then 'Senior'
+            when lower(job_title) like '%mid%' then 'Mid Level'
+            when lower(job_title) like '%staff%' then 'Staff'
+            when lower(job_title) like '% iii' then 'Mid Level'
+            when lower(job_title) like '% ii' then 'Mid Level'
+            when lower(job_title) like '% 3' then 'Mid Level'
+            when lower(job_title) like '%entry%' then 'Entry'
+            when lower(job_title) like '%junior%' then 'Entry'
+            else null
+        end as job_level,
     from derive_dates
 )
 
-select * from add_listing_info
+select * from add_dims
