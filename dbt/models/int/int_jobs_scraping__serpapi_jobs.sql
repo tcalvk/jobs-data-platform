@@ -165,17 +165,17 @@ final_transform as (
             when regexp_contains(
                 lower(job_data),
                 r'\b(master\'?s?|masters?|master degree|master\'?s degree|mba|m\.s\.|m\.a\.|m\.sc\.?)\b'
-            ) then 'Master''s'
+            ) then 'Master\'s'
 
             when regexp_contains(
                 lower(job_data),
                 r'\b(bachelor\'?s?|bachelors?|bachelor degree|bachelor\'?s degree|b\.s\.|b\.a\.|b\.sc\.?|undergraduate degree|4[- ]year degree)\b'
-            ) then 'Bachelor''s'
+            ) then 'Bachelor\'s'
 
             when regexp_contains(
                 lower(job_data),
                 r'\b(associate\'?s?|associates?|associate degree|associate\'?s degree|a\.s\.|a\.a\.|2[- ]year degree)\b'
-            ) then 'Associate''s'
+            ) then 'Associate\'s'
 
             when regexp_contains(
                 lower(job_data),
