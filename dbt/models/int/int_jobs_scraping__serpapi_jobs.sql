@@ -157,11 +157,32 @@ final_transform as (
         gcs_uri,
         job_data,
         case
-            when regexp_contains(lower(to_json_string(job_data)), r'ph\.?d\.?|p\.h\.d\.?|doctorate|doctoral') then 'Doctorate'
-            when regexp_contains(lower(to_json_string(job_data)), r'master\'?s?\s*(?:degree|\'s)|masters?\s+degree|mba|m\.s\.|m\.a\.|m\.sc') then 'Masters'
-            when regexp_contains(lower(to_json_string(job_data)), r'bachelor\'?s?\s*(?:degree|\'s)|bachelors?\s+degree|b\.s\.|b\.a\.|b\.sc|undergraduate\s+degree|4[- ]year\s+degree') then 'Bachelors'
-            when regexp_contains(lower(to_json_string(job_data)), r'associate\'?s?\s*(?:degree|\'s)|associates?\s+degree|a\.s\.|a\.a\.|2[- ]year\s+degree') then 'Associates'
-            else 'No Degree'
+            when regexp_contains(
+                lower(job_data),
+                r'\b(ph\.?d\.?|p\.?h\.?d\.?|doctorate|doctoral)\b'
+            ) then 'Doctorate'
+
+            when regexp_contains(
+                lower(job_data),
+                r'\b(master\'?s?|masters?|master degree|master\'?s degree|mba|m\.s\.|m\.a\.|m\.sc\.?)\b'
+            ) then 'Master''s'
+
+            when regexp_contains(
+                lower(job_data),
+                r'\b(bachelor\'?s?|bachelors?|bachelor degree|bachelor\'?s degree|b\.s\.|b\.a\.|b\.sc\.?|undergraduate degree|4[- ]year degree)\b'
+            ) then 'Bachelor''s'
+
+            when regexp_contains(
+                lower(job_data),
+                r'\b(associate\'?s?|associates?|associate degree|associate\'?s degree|a\.s\.|a\.a\.|2[- ]year degree)\b'
+            ) then 'Associate''s'
+
+            when regexp_contains(
+                lower(job_data),
+                r'\b(high school diploma|high school degree|ged)\b'
+            ) then 'High School'
+
+            else 'Degree Not Specified'
         end as degree_requirement,
         'Serpapi' as data_source,
     from posted_since_parsed
