@@ -95,7 +95,8 @@ pay_ranges as (
 posted_since_parsed as (
     select
         *,
-        safe_cast(regexp_extract(lower(posted_since), r'\d+') as int64) as posted_since_quantity
+        safe_cast(regexp_extract(lower(posted_since), r'\d+') as int64) as posted_since_quantity,
+        lower(to_json_string(job_data)) as job_data_lower
     from pay_ranges
 ),
 
@@ -158,27 +159,27 @@ final_transform as (
         job_data,
         case
             when regexp_contains(
-                lower(job_data),
+                job_data_lower,
                 r'\b(ph\.?d\.?|p\.?h\.?d\.?|doctorate|doctoral)\b'
             ) then 'Doctorate'
 
             when regexp_contains(
-                lower(job_data),
+                job_data_lower,
                 r'\b(master\'?s?|masters?|master degree|master\'?s degree|mba|m\.s\.|m\.a\.|m\.sc\.?)\b'
             ) then 'Master\'s'
 
             when regexp_contains(
-                lower(job_data),
+                job_data_lower,
                 r'\b(bachelor\'?s?|bachelors?|bachelor degree|bachelor\'?s degree|b\.s\.|b\.a\.|b\.sc\.?|undergraduate degree|4[- ]year degree)\b'
             ) then 'Bachelor\'s'
 
             when regexp_contains(
-                lower(job_data),
+                job_data_lower,
                 r'\b(associate\'?s?|associates?|associate degree|associate\'?s degree|a\.s\.|a\.a\.|2[- ]year degree)\b'
             ) then 'Associate\'s'
 
             when regexp_contains(
-                lower(job_data),
+                job_data_lower,
                 r'\b(high school diploma|high school degree|ged)\b'
             ) then 'High School'
 
