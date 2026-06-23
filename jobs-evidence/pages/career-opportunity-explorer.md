@@ -104,6 +104,18 @@ hide_breadcrumbs: true
     color: #263238 !important;
   }
 
+  :global([data-theme='dark']) .filter-grid :global(.bg-base-200),
+  :global([data-theme='dark']) .filter-grid :global(span.rounded-sm) {
+    background-color: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+  }
+
+  :global([data-theme='dark']) .filter-grid :global(.text-base-content),
+  :global([data-theme='dark']) .filter-grid :global(.text-base-content *) {
+    color: #0f172a !important;
+  }
+
   .kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -192,6 +204,132 @@ hide_breadcrumbs: true
     cursor: pointer;
   }
 
+  #active-jobs-detail {
+    --drilldown-card-bg: #ffffff;
+    --drilldown-table-bg: #ffffff;
+    --drilldown-table-alt-bg: #f8fafc;
+    --drilldown-table-hover-bg: #eff6ff;
+    --drilldown-header-bg: #e2e8f0;
+    --drilldown-border: #cbd5e1;
+    --drilldown-text: #1f2937;
+    --drilldown-muted-text: #475569;
+    --drilldown-heading-text: #111827;
+    --drilldown-control-bg: #ffffff;
+    --drilldown-control-border: #cbd5e1;
+    --drilldown-link: #1d4ed8;
+    background: var(--drilldown-card-bg);
+    border: 1px solid var(--drilldown-border);
+    color: var(--drilldown-text);
+  }
+
+  :global([data-theme='dark']) #active-jobs-detail {
+    --drilldown-card-bg: #f8fafc;
+    --drilldown-table-bg: #ffffff;
+    --drilldown-table-alt-bg: #f1f5f9;
+    --drilldown-table-hover-bg: #dbeafe;
+    --drilldown-header-bg: #dbeafe;
+    --drilldown-border: #94a3b8;
+    --drilldown-text: #0f172a;
+    --drilldown-muted-text: #334155;
+    --drilldown-heading-text: #020617;
+    --drilldown-control-bg: #ffffff;
+    --drilldown-control-border: #94a3b8;
+    --drilldown-link: #1d4ed8;
+    box-shadow: 0 1px 10px rgba(255, 255, 255, 0.08);
+  }
+
+  #active-jobs-detail .section-title {
+    color: var(--drilldown-heading-text);
+  }
+
+  #active-jobs-detail :global(.scrollbox) {
+    background: var(--drilldown-table-bg) !important;
+    border: 1px solid var(--drilldown-border);
+    border-radius: 0.45rem;
+  }
+
+  #active-jobs-detail :global(table) {
+    background-color: var(--drilldown-table-bg) !important;
+    color: var(--drilldown-text) !important;
+  }
+
+  #active-jobs-detail :global(thead),
+  #active-jobs-detail :global(th),
+  #active-jobs-detail :global(th span),
+  #active-jobs-detail :global(th button) {
+    background-color: var(--drilldown-header-bg) !important;
+    color: var(--drilldown-heading-text) !important;
+    font-weight: 700;
+  }
+
+  #active-jobs-detail :global(th),
+  #active-jobs-detail :global(td) {
+    border-color: var(--drilldown-border) !important;
+  }
+
+  #active-jobs-detail :global(td),
+  #active-jobs-detail :global(td span),
+  #active-jobs-detail :global(td div) {
+    color: var(--drilldown-text) !important;
+  }
+
+  #active-jobs-detail :global(tbody tr) {
+    background-color: var(--drilldown-table-bg) !important;
+  }
+
+  #active-jobs-detail :global(tbody tr:nth-child(even)),
+  #active-jobs-detail :global(.bg-base-200) {
+    background-color: var(--drilldown-table-alt-bg) !important;
+  }
+
+  #active-jobs-detail :global(tbody tr:hover),
+  #active-jobs-detail :global(tbody tr:hover td) {
+    background-color: var(--drilldown-table-hover-bg) !important;
+  }
+
+  #active-jobs-detail :global(input) {
+    background: var(--drilldown-control-bg) !important;
+    border-color: var(--drilldown-control-border) !important;
+    color: var(--drilldown-text) !important;
+  }
+
+  #active-jobs-detail :global(.search-container),
+  #active-jobs-detail :global(.search-bar) {
+    background-color: var(--drilldown-control-bg) !important;
+    border-color: var(--drilldown-control-border) !important;
+    color: var(--drilldown-text) !important;
+  }
+
+  #active-jobs-detail :global(.search-container) {
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  #active-jobs-detail :global(.search-icon) {
+    background: transparent !important;
+    color: var(--drilldown-muted-text) !important;
+  }
+
+  #active-jobs-detail :global(input::placeholder) {
+    color: var(--drilldown-muted-text) !important;
+  }
+
+  #active-jobs-detail :global(svg),
+  #active-jobs-detail :global(label),
+  #active-jobs-detail :global(p) {
+    color: var(--drilldown-muted-text) !important;
+  }
+
+  #active-jobs-detail :global(button),
+  #active-jobs-detail .drilldown-close {
+    background: var(--drilldown-control-bg);
+    border-color: var(--drilldown-control-border);
+    color: var(--drilldown-text);
+  }
+
+  #active-jobs-detail :global(a:not(.apply-link-button)) {
+    color: var(--drilldown-link) !important;
+  }
+
   #active-jobs-detail :global(th:first-child),
   #active-jobs-detail :global(td:first-child) {
     width: 18rem;
@@ -222,57 +360,11 @@ hide_breadcrumbs: true
     outline: none;
   }
 
-  @media (prefers-color-scheme: dark) {
-    #active-jobs-detail {
-      background: #09090b;
-      color: #ffffff;
-    }
-
-    #active-jobs-detail .section-title,
-    #active-jobs-detail :global(table),
-    #active-jobs-detail :global(thead),
-    #active-jobs-detail :global(tbody),
-    #active-jobs-detail :global(tr),
-    #active-jobs-detail :global(th),
-    #active-jobs-detail :global(td),
-    #active-jobs-detail :global(span),
-    #active-jobs-detail :global(div) {
-      color: #ffffff !important;
-    }
-
-    #active-jobs-detail :global(.scrollbox),
-    #active-jobs-detail :global(table),
-    #active-jobs-detail :global(thead),
-    #active-jobs-detail :global(tbody),
-    #active-jobs-detail :global(tr),
-    #active-jobs-detail :global(th),
-    #active-jobs-detail :global(td) {
-      background-color: #09090b !important;
-    }
-
-    #active-jobs-detail :global(tr:nth-child(even)),
-    #active-jobs-detail :global(.bg-base-200) {
-      background-color: #18181b !important;
-    }
-
-    #active-jobs-detail :global(input) {
-      background: #18181b !important;
-      border-color: #3f3f46 !important;
-      color: #ffffff !important;
-    }
-
-    #active-jobs-detail :global(input::placeholder) {
-      color: #a1a1aa !important;
-    }
-
-    #active-jobs-detail :global(button),
-    .drilldown-close,
-    .reset-filters-button,
-    .more-filters-toggle {
-      background: #18181b;
-      border-color: #3f3f46;
-      color: #ffffff;
-    }
+  :global([data-theme='dark']) .reset-filters-button,
+  :global([data-theme='dark']) .more-filters-toggle {
+    background: #18181b;
+    border-color: #3f3f46;
+    color: #ffffff;
   }
 
   .section-title {
@@ -326,20 +418,27 @@ order by ordinal
 ```
 
 ```sql search_locations
-with options as (
-    select
-        search_location,
-        search_location as search_location_label,
-        row_number() over (order by search_location) as option_rank
-    from (
-        select distinct search_location
-        from project_portfolio.jobs_detail_report
-        where search_location is not null
-    )
-)
 select 'All' as search_location, '𝐀𝐥𝐥 Values' as search_location_label, 0 as ordinal
 union all
-select search_location, search_location_label, option_rank as ordinal
+select 'United States' as search_location, 'United States' as search_location_label, 1 as ordinal
+order by ordinal
+```
+
+```sql job_location_states
+with options as (
+    select
+        state_name as job_location_state,
+        state_name as job_location_state_label,
+        row_number() over (order by state_name) as option_rank
+    from (
+        select distinct state_name
+        from project_portfolio.jobs_detail_report
+        where state_name is not null
+    )
+)
+select 'All' as job_location_state, '𝐀𝐥𝐥 Values' as job_location_state_label, 0 as ordinal
+union all
+select job_location_state, job_location_state_label, option_rank as ordinal
 from options
 order by ordinal
 ```
@@ -448,7 +547,7 @@ order by ordinal
   <Dropdown data={job_platforms} name=job_platform value=job_platform label=job_platform_label order=ordinal title="Job Platform" defaultValue="All" />
   <Dropdown data={listing_statuses} name=listing_status value=listing_status label=listing_status_label order=ordinal title="Listing Status" defaultValue="All" />
   <DateRange name=posted_window data={available_dates} dates=posted_date defaultValue="Last 90 Days" />
-  <Dropdown data={search_locations} name=search_location value=search_location label=search_location_label order=ordinal title="Search Location" defaultValue="United States" />
+  <Dropdown data={job_location_states} name=job_location_state value=job_location_state label=job_location_state_label order=ordinal title="Job Location State" multiple=true defaultValue={['All']} />
   <Dropdown data={job_levels} name=job_level value=job_level label=job_level_label order=ordinal title="Job Level" defaultValue="All" />
   <Dropdown data={degree_requirements} name=degree_requirement value=degree_requirement label=degree_requirement_label order=ordinal title="Degree Requirement" defaultValue="All" />
 </div>
@@ -463,6 +562,7 @@ order by ordinal
 </div>
 
 <div class="filter-grid more-filter-grid" class:filters-hidden={!showMoreFilters}>
+  <Dropdown data={search_locations} name=search_location value=search_location label=search_location_label order=ordinal title="Search Location" defaultValue="United States" />
   <Dropdown data={job_title_match_methods} name=job_title_match_method value=match_method label=match_method_label order=ordinal title="Job Title Match" defaultValue="contains" />
   <JobTitleTokenInput name="job_title_filter" title="Job Title" />
   <Dropdown data={job_title_match_methods} name=company_name_match_method value=match_method label=match_method_label order=ordinal title="Company Name Match" defaultValue="contains" />
@@ -541,6 +641,7 @@ where posted_date between cast('${inputs.posted_window.start}' as date) and cast
       )
   )
   and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+  and ('All' in ${inputs.job_location_state.value} or state_name in ${inputs.job_location_state.value})
   and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
   --and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
 ```
@@ -659,6 +760,7 @@ where listing_status = 'Active'
       )
   )
   and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+  and ('All' in ${inputs.job_location_state.value} or state_name in ${inputs.job_location_state.value})
   and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
 order by posted_date desc nulls last, opportunity_score desc nulls last
 limit 1000
@@ -760,6 +862,7 @@ where posted_date between cast('${inputs.posted_window.start}' as date) and cast
       )
   )
   and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+  and ('All' in ${inputs.job_location_state.value} or state_name in ${inputs.job_location_state.value})
   and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
   and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
 group by 1
@@ -852,6 +955,7 @@ where posted_date between cast('${inputs.posted_window.start}' as date) and cast
       )
   )
   and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+  and ('All' in ${inputs.job_location_state.value} or state_name in ${inputs.job_location_state.value})
   and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
   and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
 group by 1
@@ -963,6 +1067,7 @@ with binned as (
           )
       )
       and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+      and ('All' in ${inputs.job_location_state.value} or state_name in ${inputs.job_location_state.value})
       and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
       and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
 )
@@ -1063,6 +1168,7 @@ where lat is not null
       )
   )
   and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+  and ('All' in ${inputs.job_location_state.value} or state_name in ${inputs.job_location_state.value})
   and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
   and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
 group by 1, 2, 3
