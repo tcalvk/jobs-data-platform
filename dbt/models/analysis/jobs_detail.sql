@@ -65,6 +65,7 @@ with src as (
             when lower(job_title) like '%junior%' then 'Entry'
             else 'Mid Level'
         end as job_level,
+        
     from derive_dates
 )
 
