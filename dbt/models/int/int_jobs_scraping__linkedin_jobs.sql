@@ -98,7 +98,7 @@ final_transform as (
         high_annual_pay_range,
         job_description,
         data_source,
-        degree_requirement,
+        cast(null as string) as degree_requirement,
         cast(null as string) as source_link
     from parse
 )
