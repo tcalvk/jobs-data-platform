@@ -7,6 +7,7 @@
     "dev": "evidence dev --open /",
     "test": "evidence build",
     "sources": "evidence sources",
+    "sources:retry": "evidence sources || (sleep 10 && evidence sources) || (sleep 30 && evidence sources)",
     "sources:strict": "evidence sources --strict",
     "preview": "evidence preview"
   },
