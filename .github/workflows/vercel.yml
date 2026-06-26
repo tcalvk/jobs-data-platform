@@ -1,0 +1,19 @@
+name: Vercel Deploy
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'jobs-evidence/**'
+  schedule:
+    - cron: '0 14 * * *' # Once a day around 7am MT (2pm UTC)
+jobs:
+  build:
+    name: Request Vercel Webhook
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST to Deploy Hook
+        env:
+          BUILD_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: curl -X POST -d {} $BUILD_HOOK
