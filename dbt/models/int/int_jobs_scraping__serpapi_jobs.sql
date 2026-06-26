@@ -160,18 +160,8 @@ final_transform as (
         case
             when regexp_contains(
                 job_data_lower,
-                r'\b(ph\.?d\.?|p\.?h\.?d\.?|doctorate|doctoral)\b'
-            ) then 'Doctorate'
-
-            when regexp_contains(
-                job_data_lower,
-                r'\b(master\'?s?|masters?|master degree|master\'?s degree|mba|m\.s\.|m\.a\.|m\.sc\.?)\b'
-            ) then 'Master\'s'
-
-            when regexp_contains(
-                job_data_lower,
-                r'\b(bachelor\'?s?|bachelors?|bachelor degree|bachelor\'?s degree|b\.s\.|b\.a\.|b\.sc\.?|undergraduate degree|4[- ]year degree)\b'
-            ) then 'Bachelor\'s'
+                r'\b(high school diploma|high school degree|ged)\b'
+            ) then 'High School'
 
             when regexp_contains(
                 job_data_lower,
@@ -180,8 +170,18 @@ final_transform as (
 
             when regexp_contains(
                 job_data_lower,
-                r'\b(high school diploma|high school degree|ged)\b'
-            ) then 'High School'
+                r'\b(bachelor\'?s?|bachelors?|bachelor degree|bachelor\'?s degree|b\.s\.|b\.a\.|b\.sc\.?|undergraduate degree|4[- ]year degree)\b'
+            ) then 'Bachelor\'s'
+
+            when regexp_contains(
+                job_data_lower,
+                r'\b(master\'?s?|masters?|master degree|master\'?s degree|mba|m\.s\.|m\.a\.|m\.sc\.?)\b'
+            ) then 'Master\'s'
+
+            when regexp_contains(
+                job_data_lower,
+                r'\b(ph\.?d\.?|p\.?h\.?d\.?|doctorate|doctoral)\b'
+            ) then 'Doctorate'
 
             else 'Degree Not Specified'
         end as degree_requirement,

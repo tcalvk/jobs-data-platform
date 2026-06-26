@@ -186,6 +186,19 @@ hide_breadcrumbs: true
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
   }
 
+  .chart-split-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .section-description {
+    color: #475569;
+    font-size: 0.82rem;
+    margin: -0.2rem 0 0.35rem 0;
+  }
+
   .drilldown-header {
     display: flex;
     align-items: center;
@@ -380,7 +393,8 @@ hide_breadcrumbs: true
 
   @media (max-width: 900px) {
     .filter-grid,
-    .kpi-grid {
+    .kpi-grid,
+    .chart-split-grid {
       grid-template-columns: 1fr;
     }
 
@@ -1081,6 +1095,98 @@ group by 1, 3, 4
 order by bin_start
 ```
 
+```sql degree_requirement_distribution
+with grouped as (
+    select
+        coalesce(degree_requirement, 'Degree Not Specified') as degree_requirement,
+        count(distinct job_id) as record_count
+    from project_portfolio.jobs_detail_report
+    where posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
+      and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
+      and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
+      and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
+      and (
+          trim(${inputs.job_title_filter.sql}) = ''
+          or (
+              '${inputs.job_title_match_method.value}' = 'is'
+              and lower(coalesce(job_title, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.job_title_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.job_title_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          trim(${inputs.company_name_filter.sql}) = ''
+          or (
+              '${inputs.company_name_match_method.value}' = 'is'
+              and lower(coalesce(company_name, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.company_name_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.company_name_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+      and ('All' in ${inputs.job_location_state.value} or state_name in ${inputs.job_location_state.value})
+      and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
+      and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
+    group by 1
+)
+select
+    degree_requirement as name,
+    record_count as value,
+    case degree_requirement
+        when 'High School' then 1
+        when 'Associate''s' then 2
+        when 'Bachelor''s' then 3
+        when 'Master''s' then 4
+        when 'Doctorate' then 5
+        when 'Degree Not Specified' then 6
+        else 7
+    end as degree_order
+from grouped
+order by degree_order
+```
+
+<div class="chart-split-grid">
+
 <div class="chart-card">
   <div class="section-title">Distribution of Days Listed</div>
   <BarChart
@@ -1088,12 +1194,44 @@ order by bin_start
     x=days_bucket
     y=record_count
     series=record_series
+    sort=false
     color="#4285f4"
     yAxisTitle="Record Count"
     xAxisTitle=""
     yFmt=num0
     chartAreaHeight=260
   />
+</div>
+
+<div class="chart-card">
+  <div class="section-title">Degree Requirement Distribution</div>
+  <div class="section-description">Shows the percentage distribution of degree requirement based on the selected filters</div>
+  <ECharts config={
+    {
+      tooltip: {
+        formatter: '{b}: {c} ({d}%)'
+      },
+      legend: {
+        orient: 'vertical',
+        left: 'left',
+        top: 'middle'
+      },
+      series: [
+        {
+          type: 'pie',
+          radius: ['42%', '70%'],
+          center: ['62%', '50%'],
+          avoidLabelOverlap: true,
+          label: {
+            formatter: '{b}: {d}%'
+          },
+          data: [...degree_requirement_distribution]
+        }
+      ]
+    }
+  } height="260px" />
+</div>
+
 </div>
 
 ```sql jobs_by_location
