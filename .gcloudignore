@@ -1,0 +1,9 @@
+.claude/
+.github/
+assets/
+dbt/
+jobs-evidence/
+AGENTS.md
+.venv/
+keys/
+logs/
