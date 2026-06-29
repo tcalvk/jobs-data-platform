@@ -1,7 +1,0 @@
-[build]
-  base = "jobs-evidence"
-  command = "npm run sources:retry && npm run build"
-  publish = "build"
-
-[build.environment]
-  NODE_VERSION = "20"

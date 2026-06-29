@@ -18,7 +18,7 @@ if os.getenv("ENV", "local") == "local":
 
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-MODEL_ID = "llama-3.1-8b-instant"
+MODEL_ID = os.environ.get("GROQ_MODEL_ID", "llama-3.1-8b-instant")
 REQUESTS_PER_MINUTE = 30
 
 
@@ -362,11 +362,15 @@ def main() -> int:
     project_id = _resolve_project_id()
     jobs_dim_table_id = _require_env("BQ_JOBS_DIM_TABLE_ID")
 
-    daily_max_jobs = int(os.environ.get("ENRICH_SKILLS_DAILY_MAX_JOBS", "350"))
+    daily_max_jobs = int(os.environ.get("ENRICH_SKILLS_DAILY_MAX_JOBS", "300"))
     cooldown_seconds = int(os.environ.get("GROQ_COOLDOWN_SECONDS", "60"))
-    max_retries = int(os.environ.get("GROQ_MAX_RETRIES", "5"))
+    max_retries = int(os.environ.get("GROQ_MAX_RETRIES", "2"))
     timeout_seconds = int(os.environ.get("GROQ_REQUEST_TIMEOUT_SECONDS", "45"))
     max_output_tokens = int(os.environ.get("GROQ_MAX_OUTPUT_TOKENS", "200"))
+    upload_batch_size = int(os.environ.get("ENRICH_SKILLS_UPLOAD_BATCH_SIZE", "50"))
+    if upload_batch_size <= 0:
+        raise ValueError("ENRICH_SKILLS_UPLOAD_BATCH_SIZE must be greater than 0.")
+
     key_strategy = os.environ.get("GROQ_KEY_STRATEGY", "round_robin").strip().lower()
     if key_strategy != "round_robin":
         raise ValueError("Unsupported GROQ_KEY_STRATEGY. Supported value: 'round_robin'.")
@@ -391,6 +395,7 @@ def main() -> int:
 
     enriched_rows: List[Dict[str, Any]] = []
     failed: List[Dict[str, str]] = []
+    total_uploaded = 0
     next_key_index = 0
 
     for idx, row in enumerate(jobs, start=1):
@@ -421,15 +426,24 @@ def main() -> int:
         except Exception as exc:
             failed.append({"job_id": job_id, "data_source": data_source})
             print(f"Failed to enrich ({job_id}, {data_source}): {exc}")
+        else:
+            if len(enriched_rows) >= upload_batch_size:
+                batch_count = len(enriched_rows)
+                _upload_skills(bq_client, enriched_rows, target_table_id)
+                total_uploaded += batch_count
+                print(f"Uploaded batch of {batch_count} rows to {target_table_id}")
+                enriched_rows.clear()
 
         if idx % 25 == 0 or idx == len(jobs):
             print(
                 f"Progress: {idx}/{len(jobs)} processed; "
-                f"success={len(enriched_rows)} failed={len(failed)}"
+                f"success={total_uploaded + len(enriched_rows)} failed={len(failed)}"
             )
 
+    final_batch_count = len(enriched_rows)
     _upload_skills(bq_client, enriched_rows, target_table_id)
-    print(f"Uploaded {len(enriched_rows)} rows to {target_table_id}")
+    total_uploaded += final_batch_count
+    print(f"Uploaded {total_uploaded} total rows to {target_table_id}")
 
     key_stats = [
         {
