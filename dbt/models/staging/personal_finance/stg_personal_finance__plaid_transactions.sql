@@ -35,7 +35,10 @@ renamed as (
         TransactionID as transaction_id,
         Account as account,
         Status as status,
-        coalesce(Category_Id_Override, Category_Id__BSA_) as category_id,
+        coalesce(
+            Category_Id_Override, 
+            safe_cast(Category_Id__BSA_ as int64)
+        ) as category_id,
         Amount_Override as amount_override,
         Category__final__ as category,
         Amount__final_ as amount,
