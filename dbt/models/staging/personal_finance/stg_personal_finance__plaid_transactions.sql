@@ -1,3 +1,28 @@
+{% set run_date = run_started_at.date() %}
+{% set first_day_this_month = run_date.replace(day=1) %}
+{% set last_day_previous_month = first_day_this_month - modules.datetime.timedelta(days=1) %}
+{% set first_day_previous_month = last_day_previous_month.replace(day=1) %}
+{% set partitions_to_replace = [] %}
+
+{% for day_offset in range(last_day_previous_month.day) %}
+    {% set partition_date = first_day_previous_month + modules.datetime.timedelta(days=day_offset) %}
+    {% do partitions_to_replace.append("date '" ~ partition_date.isoformat() ~ "'") %}
+{% endfor %}
+
+{{
+    config(
+        materialized='incremental',
+        tags=['monthly_incremental_refresh'],
+        partition_by={
+            "field": "date",
+            "data_type": "date",
+            "granularity": "day"
+        },
+        incremental_strategy='insert_overwrite',
+        partitions=partitions_to_replace
+    )
+}}
+
 with source as (
     
     select 
@@ -21,6 +46,11 @@ with source as (
         Month,
         Transaction_Type
     from {{ source('personal_finance', 'plaid_transactions') }}
+
+    {% if is_incremental() %}
+        where Date between date '{{ first_day_previous_month.isoformat() }}'
+            and date '{{ last_day_previous_month.isoformat() }}'
+    {% endif %}
 
 ),
 
