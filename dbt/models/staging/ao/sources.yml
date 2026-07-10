@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: ao
-    database: "{{ env_var('DBT_GCP_PROJECT', 'dev-projects-portfolio') }}"
+    database: "{{ env_var('DBT_GCP_PROJECT', 'projects-portfolio-446806') }}"
     schema: ao                   
     tables:
       - name: enrich_skills

@@ -1,0 +1,55 @@
+name: dbt Monthly Incremental Refresh
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dbt-monthly-incremental-refresh:
+    name: Run monthly incremental dbt models
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt-bigquery
+        run: pip install dbt-bigquery
+
+      - name: Write BigQuery keyfile
+        run: echo '${{ secrets.DBT_GCP_KEY }}' > /tmp/keyfile.json
+
+      - name: Write dbt profiles.yml
+        run: |
+          cat > ./dbt/profiles.yml << 'EOF'
+          default:
+            target: prod
+            outputs:
+              prod:
+                type: bigquery
+                method: service-account
+                project: ${{ vars.GCP_PROJECT_ID }}
+                dataset: ${{ vars.DBT_DATASET }}
+                keyfile: /tmp/keyfile.json
+                threads: 4
+                timeout_seconds: 3600
+                location: us-west1
+          EOF
+
+      - name: dbt deps
+        working-directory: ./dbt
+        run: dbt deps --profiles-dir .
+
+      - name: dbt monthly incremental refresh
+        working-directory: ./dbt
+        env:
+          DBT_GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+        run: dbt run --select tag:monthly_incremental_refresh --profiles-dir .
+
+      - name: Clean up keyfile
+        if: always()
+        run: rm -f /tmp/keyfile.json
