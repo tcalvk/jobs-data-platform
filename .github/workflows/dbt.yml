@@ -61,7 +61,7 @@ jobs:
         working-directory: ./dbt
         env:
           DBT_GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
-        run: dbt run --select +tag:daily --profiles-dir .
+        run: dbt run --select +tag:daily --exclude tag:monthly_incremental_refresh --profiles-dir .
 
       - name: dbt test
         working-directory: ./dbt
