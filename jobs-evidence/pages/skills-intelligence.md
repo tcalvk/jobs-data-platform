@@ -103,6 +103,18 @@ hide_breadcrumbs: true
     color: #263238 !important;
   }
 
+  :global([data-theme='dark']) .filter-grid :global(.bg-base-200),
+  :global([data-theme='dark']) .filter-grid :global(span.rounded-sm) {
+    background-color: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+  }
+
+  :global([data-theme='dark']) .filter-grid :global(.text-base-content),
+  :global([data-theme='dark']) .filter-grid :global(.text-base-content *) {
+    color: #0f172a !important;
+  }
+
   .kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -167,13 +179,11 @@ hide_breadcrumbs: true
     display: none !important;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .reset-filters-button,
-    .more-filters-toggle {
-      background: #18181b;
-      border-color: #3f3f46;
-      color: #ffffff;
-    }
+  :global([data-theme='dark']) .reset-filters-button,
+  :global([data-theme='dark']) .more-filters-toggle {
+    background: #18181b;
+    border-color: #3f3f46;
+    color: #ffffff;
   }
 
   @media (max-width: 900px) {
@@ -215,20 +225,27 @@ order by ordinal
 ```
 
 ```sql search_locations
-with options as (
-    select
-        search_location,
-        search_location as search_location_label,
-        row_number() over (order by search_location) as option_rank
-    from (
-        select distinct search_location
-        from project_portfolio.jobs_detail_report
-        where search_location is not null
-    )
-)
 select 'All' as search_location, '𝐀𝐥𝐥 Values' as search_location_label, 0 as ordinal
 union all
-select search_location, search_location_label, option_rank as ordinal
+select 'United States' as search_location, 'United States' as search_location_label, 1 as ordinal
+order by ordinal
+```
+
+```sql job_location_states
+with options as (
+    select
+        state_name as job_location_state,
+        state_name as job_location_state_label,
+        row_number() over (order by state_name) as option_rank
+    from (
+        select distinct state_name
+        from project_portfolio.jobs_detail_report
+        where state_name is not null
+    )
+)
+select 'All' as job_location_state, '𝐀𝐥𝐥 Values' as job_location_state_label, 0 as ordinal
+union all
+select job_location_state, job_location_state_label, option_rank as ordinal
 from options
 order by ordinal
 ```
@@ -337,7 +354,7 @@ order by ordinal
   <Dropdown data={job_platforms} name=job_platform value=job_platform label=job_platform_label order=ordinal title="Job Platform" defaultValue="All" />
   <Dropdown data={listing_statuses} name=listing_status value=listing_status label=listing_status_label order=ordinal title="Listing Status" defaultValue="All" />
   <DateRange name=posted_window data={available_dates} dates=posted_date defaultValue="Last 90 Days" />
-  <Dropdown data={search_locations} name=search_location value=search_location label=search_location_label order=ordinal title="Search Location" defaultValue="United States" />
+  <Dropdown data={job_location_states} name=job_location_state value=job_location_state label=job_location_state_label order=ordinal title="Job Location State" multiple=true defaultValue={['All']} />
   <Dropdown data={job_levels} name=job_level value=job_level label=job_level_label order=ordinal title="Job Level" defaultValue="All" />
   <Dropdown data={degree_requirements} name=degree_requirement value=degree_requirement label=degree_requirement_label order=ordinal title="Degree Requirement" defaultValue="All" />
 </div>
@@ -352,6 +369,7 @@ order by ordinal
 </div>
 
 <div class="filter-grid more-filter-grid" class:filters-hidden={!showMoreFilters}>
+  <Dropdown data={search_locations} name=search_location value=search_location label=search_location_label order=ordinal title="Search Location" defaultValue="United States" />
   <Dropdown data={job_title_match_methods} name=job_title_match_method value=match_method label=match_method_label order=ordinal title="Job Title Match" defaultValue="contains" />
   <JobTitleTokenInput name="job_title_filter" title="Job Title" />
   <Dropdown data={job_title_match_methods} name=company_name_match_method value=match_method label=match_method_label order=ordinal title="Company Name Match" defaultValue="contains" />
@@ -359,9 +377,16 @@ order by ordinal
 </div>
 
 ```sql kpis
-with filtered_skills as (
-    select *
-    from project_portfolio.rpt_job_skills
+with job_states as (
+    select distinct
+        job_id,
+        state_name
+    from project_portfolio.jobs_detail_report
+), filtered_skills as (
+    select s.*
+    from project_portfolio.rpt_job_skills as s
+    left join job_states as js
+        on s.job_id = js.job_id
     where skill is not null
       and posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
       and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
@@ -426,6 +451,7 @@ with filtered_skills as (
           )
       )
       and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+      and ('All' in ${inputs.job_location_state.value} or js.state_name in ${inputs.job_location_state.value})
       and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
       and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
 ), skill_job_counts as (
