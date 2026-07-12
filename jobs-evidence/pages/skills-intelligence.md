@@ -347,6 +347,25 @@ select 'does_not_contain' as match_method, 'Does Not Contain' as match_method_la
 order by ordinal
 ```
 
+```sql skill_options
+with options as (
+    select
+        skill,
+        skill as skill_label,
+        row_number() over (order by skill) as option_rank
+    from (
+        select distinct skill
+        from project_portfolio.rpt_job_skills
+        where skill is not null
+    )
+)
+select 'All' as skill, '𝐀𝐥𝐥 Values' as skill_label, 0 as ordinal
+union all
+select skill, skill_label, option_rank as ordinal
+from options
+order by ordinal
+```
+
 <div class="coe-page">
 
 <div class="filter-grid">
@@ -374,6 +393,7 @@ order by ordinal
   <JobTitleTokenInput name="job_title_filter" title="Job Title" />
   <Dropdown data={job_title_match_methods} name=company_name_match_method value=match_method label=match_method_label order=ordinal title="Company Name Match" defaultValue="contains" />
   <JobTitleTokenInput name="company_name_filter" title="Company Name" placeholder="Type a company and press Enter" />
+  <Dropdown data={skill_options} name=skill value=skill label=skill_label order=ordinal title="Skill" multiple=true defaultValue={['All']} />
 </div>
 
 ```sql kpis
@@ -454,6 +474,7 @@ with job_states as (
       and ('All' in ${inputs.job_location_state.value} or js.state_name in ${inputs.job_location_state.value})
       and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
       and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
+      and ('All' in ${inputs.skill.value} or skill in ${inputs.skill.value})
 ), skill_job_counts as (
     select
         skill,
@@ -497,6 +518,177 @@ from filtered_skills
     <div class="kpi-title">Skills Tracked</div>
     <div class="kpi-value-box"><BigValue data={kpis} value=skills_tracked fmt=num0 /></div>
   </div>
+</div>
+
+
+```sql skill_demand_salary_impact
+with job_states as (
+    select distinct
+        job_id,
+        state_name
+    from project_portfolio.jobs_detail_report
+), filtered_skills as (
+    select s.*
+    from project_portfolio.rpt_job_skills as s
+    left join job_states as js
+        on s.job_id = js.job_id
+    where skill is not null
+      and posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
+      and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
+      and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
+      and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
+      and (
+          trim(${inputs.job_title_filter.sql}) = ''
+          or (
+              '${inputs.job_title_match_method.value}' = 'is'
+              and lower(coalesce(job_title, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.job_title_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.job_title_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          trim(${inputs.company_name_filter.sql}) = ''
+          or (
+              '${inputs.company_name_match_method.value}' = 'is'
+              and lower(coalesce(company_name, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.company_name_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.company_name_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+      and ('All' in ${inputs.job_location_state.value} or js.state_name in ${inputs.job_location_state.value})
+      and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
+      and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
+      and ('All' in ${inputs.skill.value} or skill in ${inputs.skill.value})
+)
+select
+    skill,
+    count(distinct job_id) as distinct_job_count,
+    avg(avg_annual_pay_range) as avg_annual_pay_range,
+    count(distinct case when avg_annual_pay_range is not null then job_id end) as salary_job_count,
+    round(100.0 * count(distinct case when avg_annual_pay_range is not null then job_id end) / nullif(count(distinct job_id), 0), 1) as salary_coverage_pct
+from filtered_skills
+group by 1
+having distinct_job_count > 0
+order by distinct_job_count desc, avg_annual_pay_range desc nulls last
+limit 50
+```
+
+<div class="chart-card">
+  <div class="section-title">Skill Demand vs Salary Impact</div>
+  <BubbleChart
+    data={skill_demand_salary_impact}
+    x=distinct_job_count
+    y=avg_annual_pay_range
+    size=distinct_job_count
+    series=skill
+    tooltipTitle=skill
+    legend={false}
+    xAxisTitle="Jobs Requiring Skill"
+    yAxisTitle="Avg Salary for Jobs Requiring Skill"
+    xFmt=num0
+    yFmt=usd0
+    sizeFmt=num0
+    chartAreaHeight=360
+  />
+</div>
+
+```sql skill_trend_over_time
+with job_states as (
+    select distinct
+        job_id,
+        state_name
+    from project_portfolio.jobs_detail_report
+), filtered_skills as (
+    select s.*
+    from project_portfolio.rpt_job_skills as s
+    left join job_states as js
+        on s.job_id = js.job_id
+    where skill is not null
+      and month_start_date is not null
+      and posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
+      and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
+      and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
+      and ('All' in ${inputs.job_location_state.value} or js.state_name in ${inputs.job_location_state.value})
+      and ('All' in ${inputs.skill.value} or skill in ${inputs.skill.value})
+), monthly_skill_counts as (
+    select
+        month_start_date,
+        skill,
+        count(distinct job_id) as distinct_job_count
+    from filtered_skills
+    group by 1, 2
+), ranked_skills as (
+    select
+        skill,
+        sum(distinct_job_count) as total_job_count,
+        dense_rank() over (order by sum(distinct_job_count) desc, skill) as skill_rank
+    from monthly_skill_counts
+    group by 1
+)
+select
+    m.month_start_date,
+    m.skill,
+    m.distinct_job_count
+from monthly_skill_counts as m
+inner join ranked_skills as r
+    on m.skill = r.skill
+where r.skill_rank <= 10
+order by m.month_start_date, m.skill
+```
+
+<div class="chart-card">
+  <div class="section-title">Skill Trend Over Time</div>
+  <LineChart
+    data={skill_trend_over_time}
+    x=month_start_date
+    y=distinct_job_count
+    series=skill
+    xAxisTitle="Month"
+    yAxisTitle="Jobs Requiring Skill"
+    yFmt=num0
+    chartAreaHeight=300
+  />
 </div>
 
 </div>

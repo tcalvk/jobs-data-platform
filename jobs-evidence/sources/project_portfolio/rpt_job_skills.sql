@@ -2,6 +2,7 @@ select
     skill,
     job_id,
     posted_date,
+    month_start_date,
     search_term,
     job_level,
     degree_requirement,

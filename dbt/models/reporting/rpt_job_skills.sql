@@ -22,6 +22,7 @@ with jobs_detail as (
 
     select
         jd.*,
+        date_trunc(jd.posted_date, month) as month_start_date,
         st.opportunity_score,
         st.opportunity_tier,
         s.skill
