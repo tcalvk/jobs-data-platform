@@ -8,8 +8,126 @@ hide_breadcrumbs: true
 
 <script>
   import JobTitleTokenInput from '../../components/JobTitleTokenInput.svelte';
+  import { getInputContext } from '@evidence-dev/sdk/utils/svelte';
 
   let showMoreFilters = false;
+  let filtersReady = false;
+  let dashboardLoaded = false;
+  const inputContext = getInputContext();
+  const activeInputNames = [
+    'search_term',
+    'job_platform',
+    'listing_status',
+    'posted_window',
+    'job_location_state',
+    'job_level',
+    'degree_requirement',
+    'search_location',
+    'job_title_match_method',
+    'job_title_filter',
+    'company_name_match_method',
+    'company_name_filter'
+  ];
+
+  const snapshotInput = (input) => {
+    if (input === undefined) return undefined;
+
+    const descriptors = Object.getOwnPropertyDescriptors(input);
+    for (const key of ['value', 'label', 'sql', 'start', 'end', 'rawValues']) {
+      delete descriptors[key];
+    }
+    const snapshot = Object.create(Object.getPrototypeOf(input), descriptors);
+
+    for (const key of ['value', 'label', 'sql', 'start', 'end']) {
+      if (input[key] !== undefined) {
+        Object.defineProperty(snapshot, key, {
+          configurable: true,
+          enumerable: true,
+          value: input[key],
+          writable: true
+        });
+      }
+    }
+
+    if (input.rawValues !== undefined) {
+      Object.defineProperty(snapshot, 'rawValues', {
+        configurable: true,
+        enumerable: true,
+        value: Array.isArray(input.rawValues)
+          ? [...input.rawValues]
+          : input.rawValues && typeof input.rawValues === 'object'
+            ? { ...input.rawValues }
+            : input.rawValues,
+        writable: true
+      });
+    }
+
+    return snapshot;
+  };
+
+  const snapshotActiveInputs = (current, revision) => {
+    const next = { ...current };
+
+    for (const name of activeInputNames) {
+      const snapshot = snapshotInput(current[name]);
+      if (snapshot !== undefined) {
+        next[`applied_${name}`] = snapshot;
+      }
+    }
+
+    next.dashboard_load = {
+      value: revision,
+      label: String(revision),
+      sql: String(revision)
+    };
+
+    return next;
+  };
+
+  const inputIsReady = (name, input) => {
+    if (!input) return false;
+    if (name === 'posted_window') {
+      return input.start != null && input.end != null;
+    }
+    if (name.endsWith('_filter')) {
+      return input.value != null && input.sql != null;
+    }
+    return input.value != null;
+  };
+
+  const allInputsAreReady = (current) =>
+    activeInputNames.every((name) => inputIsReady(name, current[name]));
+
+  const applyFilters = () => {
+    if (!filtersReady) return;
+
+    let updateCompleted = false;
+
+    inputContext.update((current) => {
+      if (!allInputsAreReady(current)) {
+        filtersReady = false;
+        return current;
+      }
+
+      const currentRevision = Number(current.dashboard_load?.value) || 0;
+      const next = snapshotActiveInputs(current, currentRevision + 1);
+      updateCompleted = true;
+      return next;
+    });
+
+    if (updateCompleted) dashboardLoaded = true;
+  };
+
+  // Live edits only update readiness. Queries continue to use applied_* snapshots until
+  // an explicit Load/Update, whose revision also intentionally refreshes unchanged filters.
+
+  onMount(() => {
+    const unsubscribe = inputContext.subscribe((current) => {
+      filtersReady = allInputsAreReady(current);
+    });
+
+    return unsubscribe;
+  });
 </script>
 
 <style>
@@ -64,6 +182,7 @@ hide_breadcrumbs: true
     margin: -0.55rem 0 1.2rem 0;
   }
 
+  .apply-filters-button,
   .reset-filters-button,
   .more-filters-toggle {
     border: 1px solid #cbd5e1;
@@ -77,12 +196,19 @@ hide_breadcrumbs: true
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
+  .apply-filters-button:hover,
+  .apply-filters-button:focus-visible,
   .reset-filters-button:hover,
   .reset-filters-button:focus-visible,
   .more-filters-toggle:hover,
   .more-filters-toggle:focus-visible {
     border-color: #2563eb;
     outline: none;
+  }
+
+  .apply-filters-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
   }
 
   .more-filter-grid {
@@ -168,6 +294,54 @@ hide_breadcrumbs: true
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
   }
 
+  .dashboard-unloaded {
+    min-height: 32rem;
+    margin-top: 0.35rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.65rem;
+    background: rgba(255, 255, 255, 0.72);
+    color: #263238;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 2rem;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  .dashboard-unloaded-symbol {
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 2px solid #94a3b8;
+    border-radius: 999px;
+    color: #2563eb;
+    display: grid;
+    place-items: center;
+    font-size: 1.55rem;
+    line-height: 1;
+  }
+
+  .dashboard-unloaded-title {
+    margin: 0.35rem 0 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .dashboard-unloaded-copy {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+  }
+
+  .main-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.2rem;
+    align-items: start;
+  }
+
   .section-title {
     font-size: 1rem;
     font-weight: 700;
@@ -179,6 +353,7 @@ hide_breadcrumbs: true
     display: none !important;
   }
 
+  :global([data-theme='dark']) .apply-filters-button,
   :global([data-theme='dark']) .reset-filters-button,
   :global([data-theme='dark']) .more-filters-toggle {
     background: #18181b;
@@ -186,15 +361,31 @@ hide_breadcrumbs: true
     color: #ffffff;
   }
 
+  :global([data-theme='dark']) .dashboard-unloaded {
+    background: rgba(24, 24, 27, 0.78);
+    border-color: #3f3f46;
+    color: #f8fafc;
+  }
+
+  :global([data-theme='dark']) .dashboard-unloaded-copy {
+    color: #a1a1aa;
+  }
+
   @media (max-width: 900px) {
     .filter-grid,
-    .kpi-grid {
+    .kpi-grid,
+    .main-chart-grid {
       grid-template-columns: 1fr;
     }
 
     .coe-page {
       margin-left: 0;
       margin-right: 0;
+    }
+
+    .dashboard-unloaded {
+      min-height: 24rem;
+      padding: 1.5rem;
     }
   }
 </style>
@@ -360,6 +551,9 @@ order by ordinal
 </div>
 
 <div class="filter-actions">
+  <button class="apply-filters-button" type="button" on:click={applyFilters} disabled={!filtersReady}>
+    {dashboardLoaded ? 'Update' : 'Load'}
+  </button>
   <button class="reset-filters-button" type="button" on:click={() => globalThis.location.assign(globalThis.location.pathname)}>
     Reset Filters
   </button>
@@ -376,6 +570,14 @@ order by ordinal
   <JobTitleTokenInput name="company_name_filter" title="Company Name" placeholder="Type a company and press Enter" />
 </div>
 
+{#if !dashboardLoaded}
+  <div class="dashboard-unloaded" role="status" aria-live="polite">
+    <div class="dashboard-unloaded-symbol" aria-hidden="true">↻</div>
+    <p class="dashboard-unloaded-title">Dashboard ready to load</p>
+    <p class="dashboard-unloaded-copy">Choose your filters, then click Load.</p>
+  </div>
+{/if}
+
 ```sql kpis
 with job_states as (
     select distinct
@@ -387,73 +589,78 @@ with job_states as (
     from project_portfolio.rpt_job_skills as s
     left join job_states as js
         on s.job_id = js.job_id
-    where skill is not null
-      and posted_date between cast('${inputs.posted_window.start}' as date) and cast('${inputs.posted_window.end}' as date)
-      and ('${inputs.search_term.value}' = 'All' or search_term = '${inputs.search_term.value}')
-      and ('${inputs.job_level.value}' = 'All' or job_level = '${inputs.job_level.value}')
-      and ('${inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.degree_requirement.value}')
+    where ${inputs.dashboard_load?.value} >= 1
+      and posted_date between cast('${inputs.applied_posted_window?.start ?? inputs.posted_window.start}' as date) and cast('${inputs.applied_posted_window?.end ?? inputs.posted_window.end}' as date)
+      and s.skill is not null
+      and trim(s.skill) <> ''
+      and ('${inputs.applied_search_term?.value ?? inputs.search_term.value}' = 'All' or search_term = '${inputs.applied_search_term?.value ?? inputs.search_term.value}')
+      and ('${inputs.applied_job_level?.value ?? inputs.job_level.value}' = 'All' or job_level = '${inputs.applied_job_level?.value ?? inputs.job_level.value}')
+      and ('${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}')
       and (
-          trim(${inputs.job_title_filter.sql}) = ''
+          trim(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}) = ''
           or (
-              '${inputs.job_title_match_method.value}' = 'is'
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'is'
               and lower(coalesce(job_title, '')) in (
                   select lower(trim(value))
-                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
                   where trim(value) <> ''
               )
           )
           or (
-              '${inputs.job_title_match_method.value}' = 'contains'
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'contains'
               and exists (
                   select 1
-                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
                   where trim(value) <> ''
                     and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
               )
           )
           or (
-              '${inputs.job_title_match_method.value}' = 'does_not_contain'
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'does_not_contain'
               and not exists (
                   select 1
-                  from unnest(string_split(${inputs.job_title_filter.sql}, '|||')) as t(value)
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
                   where trim(value) <> ''
                     and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
               )
           )
       )
       and (
-          trim(${inputs.company_name_filter.sql}) = ''
+          trim(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}) = ''
           or (
-              '${inputs.company_name_match_method.value}' = 'is'
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'is'
               and lower(coalesce(company_name, '')) in (
                   select lower(trim(value))
-                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
                   where trim(value) <> ''
               )
           )
           or (
-              '${inputs.company_name_match_method.value}' = 'contains'
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'contains'
               and exists (
                   select 1
-                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
                   where trim(value) <> ''
                     and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
               )
           )
           or (
-              '${inputs.company_name_match_method.value}' = 'does_not_contain'
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'does_not_contain'
               and not exists (
                   select 1
-                  from unnest(string_split(${inputs.company_name_filter.sql}, '|||')) as t(value)
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
                   where trim(value) <> ''
                     and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
               )
           )
       )
-      and ('${inputs.search_location.value}' = 'All' or search_location = '${inputs.search_location.value}')
-      and ('All' in ${inputs.job_location_state.value} or js.state_name in ${inputs.job_location_state.value})
-      and ('${inputs.job_platform.value}' = 'All' or job_platform = '${inputs.job_platform.value}')
-      and ('${inputs.listing_status.value}' = 'All' or listing_status = '${inputs.listing_status.value}')
+      and (
+          '${inputs.applied_search_location?.value ?? inputs.search_location.value}' = 'All'
+          or search_location like '%' || '${inputs.applied_search_location?.value ?? inputs.search_location.value}' || '%'
+      )
+      and ('All' in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value} or js.state_name in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value})
+      and ('${inputs.applied_job_platform?.value ?? inputs.job_platform.value}' = 'All' or job_platform = '${inputs.applied_job_platform?.value ?? inputs.job_platform.value}')
+      and ('${inputs.applied_listing_status?.value ?? inputs.listing_status.value}' = 'All' or listing_status = '${inputs.applied_listing_status?.value ?? inputs.listing_status.value}')
 ), skill_job_counts as (
     select
         skill,
@@ -484,6 +691,7 @@ select
 from filtered_skills
 ```
 
+{#if dashboardLoaded}
 <div class="kpi-grid">
   <div class="kpi-card">
     <div class="kpi-title">Top Skill</div>
@@ -498,5 +706,583 @@ from filtered_skills
     <div class="kpi-value-box"><BigValue data={kpis} value=skills_tracked fmt=num0 /></div>
   </div>
 </div>
+{/if}
+
+```sql top_requested_skills
+with job_states as (
+    select distinct
+        job_id,
+        state_name
+    from project_portfolio.jobs_detail_report
+), filtered_skills as (
+    select s.*
+    from project_portfolio.rpt_job_skills as s
+    where ${inputs.dashboard_load?.value} >= 1
+      and posted_date between cast('${inputs.applied_posted_window?.start ?? inputs.posted_window.start}' as date) and cast('${inputs.applied_posted_window?.end ?? inputs.posted_window.end}' as date)
+      and s.skill is not null
+      and trim(s.skill) <> ''
+      and ('${inputs.applied_search_term?.value ?? inputs.search_term.value}' = 'All' or search_term = '${inputs.applied_search_term?.value ?? inputs.search_term.value}')
+      and ('${inputs.applied_job_level?.value ?? inputs.job_level.value}' = 'All' or job_level = '${inputs.applied_job_level?.value ?? inputs.job_level.value}')
+      and ('${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}')
+      and (
+          trim(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}) = ''
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'is'
+              and lower(coalesce(job_title, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          trim(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}) = ''
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'is'
+              and lower(coalesce(company_name, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          '${inputs.applied_search_location?.value ?? inputs.search_location.value}' = 'All'
+          or search_location like '%' || '${inputs.applied_search_location?.value ?? inputs.search_location.value}' || '%'
+      )
+      and (
+          'All' in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value}
+          or exists (
+              select 1
+              from job_states as js
+              where js.job_id = s.job_id
+                and js.state_name in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value}
+          )
+      )
+      and ('${inputs.applied_job_platform?.value ?? inputs.job_platform.value}' = 'All' or job_platform = '${inputs.applied_job_platform?.value ?? inputs.job_platform.value}')
+      and ('${inputs.applied_listing_status?.value ?? inputs.listing_status.value}' = 'All' or listing_status = '${inputs.applied_listing_status?.value ?? inputs.listing_status.value}')
+)
+select
+    skill,
+    count(distinct job_id) as distinct_job_count
+from filtered_skills
+group by 1
+order by distinct_job_count desc, skill
+limit 15
+```
+
+```sql skill_demand_salary_impact
+with job_states as (
+    select distinct
+        job_id,
+        state_name
+    from project_portfolio.jobs_detail_report
+), filtered_skills as (
+    select s.*
+    from project_portfolio.rpt_job_skills as s
+    where ${inputs.dashboard_load?.value} >= 1
+      and posted_date between cast('${inputs.applied_posted_window?.start ?? inputs.posted_window.start}' as date) and cast('${inputs.applied_posted_window?.end ?? inputs.posted_window.end}' as date)
+      and s.skill is not null
+      and trim(s.skill) <> ''
+      and ('${inputs.applied_search_term?.value ?? inputs.search_term.value}' = 'All' or search_term = '${inputs.applied_search_term?.value ?? inputs.search_term.value}')
+      and ('${inputs.applied_job_level?.value ?? inputs.job_level.value}' = 'All' or job_level = '${inputs.applied_job_level?.value ?? inputs.job_level.value}')
+      and ('${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}')
+      and (
+          trim(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}) = ''
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'is'
+              and lower(coalesce(job_title, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          trim(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}) = ''
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'is'
+              and lower(coalesce(company_name, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          '${inputs.applied_search_location?.value ?? inputs.search_location.value}' = 'All'
+          or search_location like '%' || '${inputs.applied_search_location?.value ?? inputs.search_location.value}' || '%'
+      )
+      and (
+          'All' in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value}
+          or exists (
+              select 1
+              from job_states as js
+              where js.job_id = s.job_id
+                and js.state_name in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value}
+          )
+      )
+      and ('${inputs.applied_job_platform?.value ?? inputs.job_platform.value}' = 'All' or job_platform = '${inputs.applied_job_platform?.value ?? inputs.job_platform.value}')
+      and ('${inputs.applied_listing_status?.value ?? inputs.listing_status.value}' = 'All' or listing_status = '${inputs.applied_listing_status?.value ?? inputs.listing_status.value}')
+), skill_salary_metrics as (
+    select
+        skill,
+        count(distinct job_id) as distinct_job_count,
+        avg(avg_annual_pay_range) as avg_annual_pay_range,
+        count(distinct case when avg_annual_pay_range is not null then job_id end) as salary_job_count
+    from filtered_skills
+    group by 1
+), ranked_skills as (
+    select
+        skill,
+        distinct_job_count,
+        avg_annual_pay_range,
+        salary_job_count,
+        salary_job_count * 1.0 / nullif(distinct_job_count, 0) as salary_coverage_pct,
+        row_number() over (order by distinct_job_count desc, skill) as demand_rank,
+        row_number() over (order by avg_annual_pay_range desc nulls last, skill) as salary_rank
+    from skill_salary_metrics
+    where avg_annual_pay_range is not null
+      and salary_job_count >= 3
+)
+select
+    skill,
+    distinct_job_count,
+    avg_annual_pay_range,
+    salary_job_count,
+    salary_coverage_pct
+from ranked_skills
+where demand_rank <= 40
+   or salary_rank <= 40
+order by distinct_job_count desc, avg_annual_pay_range desc nulls last, skill
+limit 25
+```
+
+```sql skill_trend_over_time
+with job_states as (
+    select distinct
+        job_id,
+        state_name
+    from project_portfolio.jobs_detail_report
+), filtered_skills as (
+    select s.*
+    from project_portfolio.rpt_job_skills as s
+    where ${inputs.dashboard_load?.value} >= 1
+      and posted_date between cast('${inputs.applied_posted_window?.start ?? inputs.posted_window.start}' as date) and cast('${inputs.applied_posted_window?.end ?? inputs.posted_window.end}' as date)
+      and s.skill is not null
+      and trim(s.skill) <> ''
+      and ('${inputs.applied_search_term?.value ?? inputs.search_term.value}' = 'All' or search_term = '${inputs.applied_search_term?.value ?? inputs.search_term.value}')
+      and ('${inputs.applied_job_level?.value ?? inputs.job_level.value}' = 'All' or job_level = '${inputs.applied_job_level?.value ?? inputs.job_level.value}')
+      and ('${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}' = 'All' or degree_requirement = '${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}')
+      and (
+          trim(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}) = ''
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'is'
+              and lower(coalesce(job_title, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          trim(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}) = ''
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'is'
+              and lower(coalesce(company_name, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          '${inputs.applied_search_location?.value ?? inputs.search_location.value}' = 'All'
+          or search_location like '%' || '${inputs.applied_search_location?.value ?? inputs.search_location.value}' || '%'
+      )
+      and (
+          'All' in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value}
+          or exists (
+              select 1
+              from job_states as js
+              where js.job_id = s.job_id
+                and js.state_name in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value}
+          )
+      )
+      and ('${inputs.applied_job_platform?.value ?? inputs.job_platform.value}' = 'All' or job_platform = '${inputs.applied_job_platform?.value ?? inputs.job_platform.value}')
+      and ('${inputs.applied_listing_status?.value ?? inputs.listing_status.value}' = 'All' or listing_status = '${inputs.applied_listing_status?.value ?? inputs.listing_status.value}')
+), top_skills as (
+    select
+        skill,
+        count(distinct job_id) as distinct_job_count
+    from filtered_skills
+    group by 1
+    order by distinct_job_count desc, skill
+    limit 10
+), monthly_skill_demand as (
+    select
+        date_trunc('month', fs.posted_date) as month_start_date,
+        fs.skill,
+        count(distinct fs.job_id) as distinct_job_count
+    from filtered_skills as fs
+    inner join top_skills as ts
+        on fs.skill = ts.skill
+    group by 1, 2
+)
+select
+    strftime(month_start_date, '%b %Y') as month,
+    skill,
+    distinct_job_count
+from monthly_skill_demand
+order by month_start_date, skill
+```
+
+```sql skill_penetration_by_job_title
+with filtered_jobs as (
+    select distinct
+        d.job_id,
+        d.job_title
+    from project_portfolio.jobs_detail_report as d
+    where ${inputs.dashboard_load?.value} >= 1
+      and d.posted_date between cast('${inputs.applied_posted_window?.start ?? inputs.posted_window.start}' as date) and cast('${inputs.applied_posted_window?.end ?? inputs.posted_window.end}' as date)
+      and d.job_title is not null
+      and trim(d.job_title) <> ''
+      and ('${inputs.applied_search_term?.value ?? inputs.search_term.value}' = 'All' or d.search_term = '${inputs.applied_search_term?.value ?? inputs.search_term.value}')
+      and ('${inputs.applied_job_level?.value ?? inputs.job_level.value}' = 'All' or d.job_level = '${inputs.applied_job_level?.value ?? inputs.job_level.value}')
+      and ('${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}' = 'All' or d.degree_requirement = '${inputs.applied_degree_requirement?.value ?? inputs.degree_requirement.value}')
+      and (
+          trim(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}) = ''
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'is'
+              and lower(coalesce(d.job_title, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(d.job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.applied_job_title_match_method?.value ?? inputs.job_title_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_job_title_filter?.sql ?? inputs.job_title_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(d.job_title, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          trim(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}) = ''
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'is'
+              and lower(coalesce(d.company_name, '')) in (
+                  select lower(trim(value))
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+              )
+          )
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'contains'
+              and exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(d.company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+          or (
+              '${inputs.applied_company_name_match_method?.value ?? inputs.company_name_match_method.value}' = 'does_not_contain'
+              and not exists (
+                  select 1
+                  from unnest(string_split(${inputs.applied_company_name_filter?.sql ?? inputs.company_name_filter.sql}, '|||')) as t(value)
+                  where trim(value) <> ''
+                    and lower(coalesce(d.company_name, '')) like '%' || lower(trim(value)) || '%'
+              )
+          )
+      )
+      and (
+          '${inputs.applied_search_location?.value ?? inputs.search_location.value}' = 'All'
+          or d.search_location like '%' || '${inputs.applied_search_location?.value ?? inputs.search_location.value}' || '%'
+      )
+      and (
+          'All' in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value}
+          or d.state_name in ${inputs.applied_job_location_state?.value ?? inputs.job_location_state.value}
+      )
+      and ('${inputs.applied_job_platform?.value ?? inputs.job_platform.value}' = 'All' or d.job_platform = '${inputs.applied_job_platform?.value ?? inputs.job_platform.value}')
+      and ('${inputs.applied_listing_status?.value ?? inputs.listing_status.value}' = 'All' or d.listing_status = '${inputs.applied_listing_status?.value ?? inputs.listing_status.value}')
+), top_titles as (
+    select
+        job_title,
+        count(distinct job_id) as title_job_count
+    from filtered_jobs
+    group by 1
+    order by title_job_count desc, job_title
+    limit 20
+), top_title_jobs as (
+    select
+        fj.job_id,
+        fj.job_title
+    from filtered_jobs as fj
+    inner join top_titles as tt
+        on fj.job_title = tt.job_title
+), cohort_job_skills as (
+    select distinct
+        ttj.job_id,
+        ttj.job_title,
+        trim(s.skill) as skill
+    from top_title_jobs as ttj
+    inner join project_portfolio.rpt_job_skills as s
+        on ttj.job_id = s.job_id
+    where s.skill is not null
+      and trim(s.skill) <> ''
+), top_skills as (
+    select
+        skill,
+        count(distinct job_id) as skill_job_count
+    from cohort_job_skills
+    group by 1
+    order by skill_job_count desc, skill
+    limit 10
+), title_skill_counts as (
+    select
+        cjs.job_title,
+        cjs.skill,
+        count(distinct cjs.job_id) as skill_title_job_count
+    from cohort_job_skills as cjs
+    inner join top_skills as ts
+        on cjs.skill = ts.skill
+    group by 1, 2
+)
+select
+    tt.job_title,
+    ts.skill,
+    coalesce(tsc.skill_title_job_count, 0) * 1.0 / nullif(tt.title_job_count, 0) as penetration_pct,
+    tt.title_job_count,
+    ts.skill_job_count,
+    coalesce(tsc.skill_title_job_count, 0) as skill_title_job_count
+from top_titles as tt
+cross join top_skills as ts
+left join title_skill_counts as tsc
+    on tt.job_title = tsc.job_title
+   and ts.skill = tsc.skill
+order by tt.title_job_count desc, tt.job_title, ts.skill_job_count desc, ts.skill
+```
+
+{#if dashboardLoaded}
+<div class="main-chart-grid">
+
+<div class="chart-card">
+  <div class="section-title">Top Requested Skills</div>
+  <BarChart
+    data={top_requested_skills}
+    x=skill
+    y=distinct_job_count
+    swapXY=true
+    labels=true
+    yAxisTitle="Distinct Jobs"
+    xAxisTitle=""
+    color="#4285f4"
+    chartAreaHeight=360
+  />
+</div>
+
+<div class="chart-card">
+  <div class="section-title">Skill Demand vs Salary Impact</div>
+  <BubbleChart
+    data={skill_demand_salary_impact}
+    x=distinct_job_count
+    y=avg_annual_pay_range
+    size=distinct_job_count
+    series=skill
+    tooltipTitle=skill
+    legend={false}
+    xAxisTitle="Jobs Requiring Skill"
+    yAxisTitle="Average Salary"
+    xFmt=num0
+    yFmt=usd0
+    sizeFmt=num0
+    chartAreaHeight=360
+    tooltip={[
+      { id: 'skill', showColumnName: false },
+      { id: 'distinct_job_count', title: 'Jobs Requiring Skill', fmt: 'num0' },
+      { id: 'avg_annual_pay_range', title: 'Average Salary', fmt: 'usd0' },
+      { id: 'salary_coverage_pct', title: 'Salary Coverage', fmt: 'pct0' },
+      { id: 'salary_job_count', title: 'Jobs With Salary', fmt: 'num0' }
+    ]}
+    seriesOptions={{
+      label: {
+        show: true,
+        formatter: (params) => params.value[3],
+        position: 'right',
+        color: () => globalThis?.matchMedia?.('(prefers-color-scheme: dark)').matches ? '#ffffff' : '#263238',
+        fontSize: 11
+      },
+      labelLayout: {
+        hideOverlap: true
+      }
+    }}
+  />
+</div>
+
+</div>
+
+<div class="chart-card">
+  <div class="section-title">Skill Trend Over Time</div>
+  <LineChart
+    data={skill_trend_over_time}
+    x=month
+    y=distinct_job_count
+    series=skill
+    sort=false
+    xAxisTitle=""
+    yAxisTitle="Distinct Jobs"
+    yFmt=num0
+    markers=true
+    chartAreaHeight=320
+  />
+</div>
+
+<div class="chart-card">
+  <div class="section-title">Skill Penetration by Job Title</div>
+  <Heatmap
+    data={skill_penetration_by_job_title}
+    x=skill
+    y=job_title
+    value=penetration_pct
+    valueFmt=pct0
+    min=0
+    max=1
+    xSort=skill_job_count
+    xSortOrder=desc
+    ySort=title_job_count
+    ySortOrder=desc
+    xAxisPosition=top
+    xLabelRotation=-35
+    valueLabels=true
+    mobileValueLabels=false
+    cellHeight=30
+    chartAreaHeight=600
+    leftPadding=150
+    rightPadding=56
+  />
+</div>
+
+{/if}
 
 </div>

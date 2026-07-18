@@ -13,3 +13,4 @@ select
     avg_annual_pay_range
 from `projects-portfolio-446806.reporting.rpt_job_skills`
 where skill is not null
+  and skill != ' '
