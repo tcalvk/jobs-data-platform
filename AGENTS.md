@@ -55,3 +55,6 @@ Dashboard filters are generally considered standard. This means that if you add 
 If dashboard filters have options associated (e.g. matching "is, contains, etc"), those should also be considered standard and included on every dashboard where that filter is included. 
 
 A human developer may override these standards, but you don't do so unless you're told explicitly. 
+
+#### Testing/QA
+Do not run npm run sources. This is an extremely slow process and is not worth running. Let the user run manually if they choose. 
