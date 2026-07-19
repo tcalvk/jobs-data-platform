@@ -71,6 +71,7 @@ with state_centers as (
         safe_cast(avg_annual_pay_range as float64) as avg_annual_pay_range,
         cast(removed_date as date) as removed_date,
         cast(posted_date as date) as posted_date,
+        safe_cast(last_seen_at_utc as timestamp) as last_seen_at_utc,
         coalesce(nullif(trim(listing_status), ''), 'Unknown') as listing_status,
         safe_cast(days_listed as int64) as days_listed,
         safe_cast(opportunity_score as float64) as opportunity_score,
