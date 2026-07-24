@@ -1,3 +1,19 @@
+{% set partitions_to_replace = generate_partitions_to_replace() %}
+
+{{
+    config(
+        materialized='incremental',
+        partition_by={
+            "field": "created_date",
+            "data_type": "date",
+            "granularity": "day"
+        },
+        incremental_strategy='insert_overwrite',
+        partitions=partitions_to_replace,
+        on_schema_change='fail'
+    )
+}}
+
 with source as (
     select
         created_at_utc,
@@ -6,6 +22,9 @@ with source as (
         query_version_id,
         gcs_uri
     from {{ ref('stg_jobs_scraping__serpapi_jobs') }}
+    {% if is_incremental() %}
+    where cast(created_at_utc as date) in ({{ partitions_to_replace | join(', ') }})
+    {% endif %}
 ),
 
 parsed as (
@@ -104,6 +123,7 @@ final_transform as (
     select
         created_at_utc,
         created_at_mst,
+        cast(created_at_utc as date) as created_date,
         gl,
         google_domain,
         hl,
