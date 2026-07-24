@@ -1,3 +1,19 @@
+{% set partitions_to_replace = generate_partitions_to_replace() %}
+
+{{
+    config(
+        materialized='incremental',
+        partition_by={
+            "field": "created_date",
+            "data_type": "date",
+            "granularity": "day"
+        },
+        incremental_strategy='insert_overwrite',
+        partitions=partitions_to_replace,
+        on_schema_change='fail'
+    )
+}}
+
 with src as (
     select 
         job_id,
@@ -10,6 +26,9 @@ with src as (
         listing_details,
         fit_level_preferences
     from {{ ref('stg_jobs_scraping__linkedin_scraped_jobs') }} 
+    {% if is_incremental() %}
+    where cast(created_at_utc as date) in ({{ partitions_to_replace | join(', ') }})
+    {% endif %}
 ),
 
 parse as (
@@ -85,6 +104,7 @@ final_transform as (
         job_title,
         created_at_utc,
         created_at_mst,
+        cast(created_at_utc as date) as created_date,
         company_name,
         search_term,
         search_job_location as search_location,
@@ -104,5 +124,3 @@ final_transform as (
 )
 
 select * from final_transform
-
-
