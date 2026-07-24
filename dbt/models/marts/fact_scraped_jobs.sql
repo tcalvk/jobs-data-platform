@@ -1,3 +1,19 @@
+{% set partitions_to_replace = generate_partitions_to_replace() %}
+
+{{
+    config(
+        materialized='incremental',
+        partition_by={
+            "field": "created_date",
+            "data_type": "date",
+            "granularity": "day"
+        },
+        incremental_strategy='insert_overwrite',
+        partitions=partitions_to_replace,
+        on_schema_change='fail'
+    )
+}}
+
 {% set sources = [
   ref('int_jobs_scraping__serpapi_jobs'),
   ref('int_jobs_scraping__linkedin_jobs')
@@ -6,6 +22,7 @@
 {% set columns = [
     'created_at_utc',
     'created_at_mst',
+    'created_date',
     'platform_job_id',
     'job_title',
     'company_name',
@@ -29,6 +46,9 @@ with unioned as (
         {{ col }}{% if not loop.last %},{% endif %}
       {% endfor %}
     from {{ src }}
+    {% if is_incremental() %}
+    where created_date in ({{ partitions_to_replace | join(', ') }})
+    {% endif %}
     
     {% if not loop.last %}union all{% endif %}
   
