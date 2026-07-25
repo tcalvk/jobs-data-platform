@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: jobs_detail_report
+    description: Job listing detail enriched with monthly opportunity scoring attributes.
+    columns:
+      - name: job_id
+        data_tests:
+          - unique
+          - not_null
