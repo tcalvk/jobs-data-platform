@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: int_jobs_scraping__serpapi_jobs
+    columns:
+      - name: query_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_seeds__serpapi_query_versions')
+                field: query_id
+      - name: search_term
+        data_tests:
+          - not_null
+      - name: search_location
+        data_tests:
+          - not_null
