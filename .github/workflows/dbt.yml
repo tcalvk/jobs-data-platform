@@ -10,10 +10,64 @@ on:
       - "dbt/**"
       - ".github/workflows/dbt.yml"
   workflow_dispatch:
+    inputs:
+      test_slack_notification:
+        description: "Send only a test Slack notification (skip dbt)"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
+  slack-notification-smoke-test:
+    name: Test Slack notification
+    if: github.event_name == 'workflow_dispatch' && inputs.test_slack_notification == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send test notification to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo '::error::SLACK_WEBHOOK_URL is not configured; Slack smoke test cannot run.'
+            exit 1
+          fi
+
+          payload_file="${RUNNER_TEMP}/slack-smoke-test.json"
+          export PAYLOAD_FILE="${payload_file}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          text = (
+              "[TEST] Slack notification smoke test — no dbt tasks were run.\n"
+              f"Repository: {os.environ['REPOSITORY']}\n"
+              f"Workflow: {os.environ['WORKFLOW']}\n"
+              f"Run: {os.environ['RUN_URL']}"
+          )
+          Path(os.environ["PAYLOAD_FILE"]).write_text(
+              json.dumps({"text": text}), encoding="utf-8"
+          )
+          PY
+          response=$(curl --silent --show-error --fail-with-body \
+            --connect-timeout 10 --max-time 30 \
+            --retry 2 --retry-all-errors --retry-max-time 60 \
+            -H 'Content-Type: application/json' \
+            --data-binary @"${payload_file}" \
+            --url "${SLACK_WEBHOOK_URL}")
+
+          if [ "${response}" != "ok" ]; then
+            echo "::error::Slack returned an unexpected response: ${response}"
+            exit 1
+          fi
+
   dbt:
     name: Run dbt
+    if: github.event_name != 'workflow_dispatch' || inputs.test_slack_notification != true
     runs-on: ubuntu-latest
 
     steps:
