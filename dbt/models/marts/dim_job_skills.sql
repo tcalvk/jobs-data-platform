@@ -7,7 +7,7 @@ with _dedupe as (
     ) = 1 
 )
 
-,raw_skills as (
+, raw_skills as (
     select
         job_id,
         data_source,
@@ -16,5 +16,16 @@ with _dedupe as (
     ,unnest(split(skills, ',')) as skill
 )
 
+, _filter_and_dedupe as (
+    select *
+    from raw_skills
+    where skill != ''
+    and skill is not null
+    qualify row_number() over (
+        partition by job_id, data_source, skill
+        order by job_id
+    ) = 1
+)
+
 select * 
-from raw_skills 
+from _filter_and_dedupe

@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: stg_seeds__serpapi_query_versions
+    columns:
+      - name: query_id
+        data_tests:
+          - unique
+          - not_null
+      - name: active
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - 0
+                  - 1
+                quote: false
