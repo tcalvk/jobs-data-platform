@@ -1,0 +1,41 @@
+version: 2
+
+exposures:
+  - name: career_opportunity_explorer
+    label: Career Opportunity Explorer
+    type: dashboard
+    maturity: medium
+    url: https://jobs-data-platform.vercel.app/career-opportunity-explorer
+    description: Dashboard for exploring current career opportunities.
+    depends_on:
+      - ref('jobs_detail_report')
+    owner:
+      name: Tanner Klein
+      email: 103088458+tcalvk@users.noreply.github.com
+
+  - name: skills_intelligence
+    label: Skills Intelligence
+    type: dashboard
+    maturity: low
+    url: https://jobs-data-platform.vercel.app/skills-intelligence
+    description: Dashboard for analyzing skills demand across job listings.
+    depends_on:
+      - ref('jobs_detail_report')
+      - ref('rpt_job_skills')
+    owner:
+      name: Tanner Klein
+      email: 103088458+tcalvk@users.noreply.github.com
+
+  - name: market_dynamics
+    label: Market Dynamics
+    type: dashboard
+    maturity: low
+    url: https://jobs-data-platform.vercel.app/market-dynamics
+    description: Dashboard for tracking job market activity and trends.
+    depends_on:
+      - ref('jobs_detail_report')
+      - ref('jobs_flow_week')
+      - ref('jobs_flow_week_trends')
+    owner:
+      name: Tanner Klein
+      email: 103088458+tcalvk@users.noreply.github.com
