@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - "dbt/**"
+      - ".github/workflows/dbt.yml"
   workflow_dispatch:
 
 jobs:
@@ -50,6 +51,156 @@ jobs:
       - name: dbt deps
         working-directory: ./dbt
         run: dbt deps --profiles-dir .
+
+      - name: Check jobs source freshness
+        id: freshness
+        continue-on-error: true
+        working-directory: ./dbt
+        env:
+          DBT_GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+        run: dbt source freshness --select 'source:jobs_scraping.serpapi_jobs' --profiles-dir .
+
+      - name: Preserve source freshness results
+        if: always() && hashFiles('dbt/target/sources.json') != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-source-freshness-results
+          path: dbt/target/sources.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Summarize source freshness results
+        id: freshness_report
+        if: always()
+        env:
+          FRESHNESS_OUTCOME: ${{ steps.freshness.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact = Path("dbt/target/sources.json")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          has_warnings = False
+          has_errors = False
+          report_failed = False
+          rows = []
+
+          try:
+              payload = json.loads(artifact.read_text(encoding="utf-8"))
+              for result in payload.get("results", []):
+                  status = str(result.get("status", "unknown")).lower()
+                  has_warnings = has_warnings or status == "warn"
+                  has_errors = has_errors or status not in {"pass", "warn"}
+                  rows.append(
+                      (
+                          str(result.get("unique_id", "unknown")),
+                          status,
+                          str(result.get("max_loaded_at", "")),
+                          str(result.get("snapshotted_at", "")),
+                          str(result.get("age", "")),
+                      )
+                  )
+          except (OSError, ValueError, TypeError) as exc:
+              report_failed = True
+              rows.append(("sources.json", "unavailable", "", "", str(exc)))
+
+          def cell(value):
+              return value.replace("|", "\\|").replace("\n", " ")
+
+          lines = [
+              "## dbt source freshness",
+              "",
+              f"Command outcome: **{cell(os.environ.get('FRESHNESS_OUTCOME', 'unknown'))}**",
+              "",
+              "| Source | Status | Max loaded at | Snapshotted at | Age / details |",
+              "| --- | --- | --- | --- | --- |",
+          ]
+          lines.extend("| " + " | ".join(cell(value) for value in row) + " |" for row in rows)
+          if not rows:
+              lines.append("| No freshness results | unknown |  |  | sources.json contained no results |")
+              report_failed = True
+          summary.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+          with output.open("a", encoding="utf-8") as handle:
+              handle.write(f"has_warnings={str(has_warnings).lower()}\n")
+              handle.write(f"has_errors={str(has_errors).lower()}\n")
+              handle.write(f"report_failed={str(report_failed).lower()}\n")
+              handle.write("slack_summary<<EOF\n")
+              handle.write("\n".join(
+                  f"{source}: {status} (latest: {max_loaded_at or 'unknown'})"
+                  for source, status, max_loaded_at, _, _ in rows
+              ))
+              handle.write("\nEOF\n")
+          PY
+
+      - name: Notify Slack about source freshness
+        if: >-
+          always() &&
+          (steps.freshness.outcome == 'failure' ||
+           steps.freshness_report.outcome == 'failure' ||
+           steps.freshness_report.outputs.has_warnings == 'true' ||
+           steps.freshness_report.outputs.has_errors == 'true' ||
+           steps.freshness_report.outputs.report_failed == 'true')
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          FRESHNESS_OUTCOME: ${{ steps.freshness.outcome }}
+          HAS_WARNINGS: ${{ steps.freshness_report.outputs.has_warnings }}
+          HAS_ERRORS: ${{ steps.freshness_report.outputs.has_errors }}
+          REPORT_FAILED: ${{ steps.freshness_report.outputs.report_failed }}
+          FRESHNESS_SUMMARY: ${{ steps.freshness_report.outputs.slack_summary }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo '::warning::SLACK_WEBHOOK_URL is not configured; freshness notification was skipped.'
+            exit 0
+          fi
+
+          payload_file="${RUNNER_TEMP}/dbt-freshness-slack.json"
+          export PAYLOAD_FILE="${payload_file}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          details = (
+              f"outcome={os.environ['FRESHNESS_OUTCOME']}, "
+              f"warnings={os.environ['HAS_WARNINGS']}, "
+              f"errors={os.environ['HAS_ERRORS']}, "
+              f"report_failed={os.environ['REPORT_FAILED']}"
+          )
+          text = (
+              f"dbt source freshness alert for {os.environ['REPOSITORY']} "
+              f"({os.environ['WORKFLOW']}): {details}.\n"
+              f"{os.environ['FRESHNESS_SUMMARY']}\n{os.environ['RUN_URL']}"
+          )
+          Path(os.environ["PAYLOAD_FILE"]).write_text(
+              json.dumps({"text": text}), encoding="utf-8"
+          )
+          PY
+          curl --silent --show-error --fail-with-body \
+            --connect-timeout 10 --max-time 30 \
+            --retry 2 --retry-all-errors --retry-max-time 60 \
+            -H 'Content-Type: application/json' \
+            --data-binary @"${payload_file}" \
+            "${SLACK_WEBHOOK_URL}"
+
+      - name: Stop on source freshness errors
+        if: >-
+          always() &&
+          (steps.freshness.outcome == 'failure' ||
+           steps.freshness_report.outcome == 'failure' ||
+           steps.freshness_report.outputs.has_errors == 'true' ||
+           steps.freshness_report.outputs.report_failed == 'true')
+        run: |
+          echo 'Source freshness failed or reported an error; stopping before dbt seed.' >&2
+          exit 1
 
       - name: dbt seed
         working-directory: ./dbt
