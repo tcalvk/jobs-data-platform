@@ -1,6 +1,27 @@
 version: 2
 
 models:
+  - name: jobs_detail
+    description: Enriched job listing detail with listing lifecycle attributes.
+    columns:
+      - name: job_id
+        data_tests:
+          - unique
+          - not_null
+      - name: listing_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - Active
+                  - Removed
+      - name: first_seen_at_utc
+        data_tests:
+          - not_null
+      - name: last_seen_at_utc
+        data_tests:
+          - not_null
+
   - name: search_term_opportunity_score_month
     data_tests:
       - dbt_utils.unique_combination_of_columns:
@@ -83,4 +104,3 @@ models:
                   - Moderate Opportunity
                   - Weak Opportunity
                   - Insufficient Data
-                  
