@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: dim_job_listings
+    description: One row per job listing.
+    columns:
+      - name: job_id
+        data_tests:
+          - unique
+          - not_null
+      - name: data_source
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - Serpapi
+                  - LinkedIn
+
+  - name: fact_scraped_jobs
+    description: One row per job listing scrape event.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - job_id
+              - created_at_utc
+    columns:
+      - name: job_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_job_listings')
+                field: job_id
+      - name: created_at_utc
+        data_tests:
+          - not_null
+      - name: created_date
+        data_tests:
+          - not_null
+      - name: data_source
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - Serpapi
+                  - LinkedIn
