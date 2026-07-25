@@ -203,22 +203,78 @@ jobs:
           exit 1
 
       - name: dbt seed
+        id: dbt_seed
         working-directory: ./dbt
         env:
           DBT_GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
         run: dbt seed --profiles-dir .
 
       - name: dbt daily run
+        id: dbt_daily_run
         working-directory: ./dbt
         env:
           DBT_GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
         run: dbt run --select +tag:daily --exclude tag:monthly_incremental_refresh --profiles-dir .
 
       - name: dbt test
+        id: dbt_test
         working-directory: ./dbt
         env:
           DBT_GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
         run: dbt test --profiles-dir .
+
+      - name: Notify Slack about dbt pipeline failure
+        if: >-
+          always() &&
+          (steps.dbt_seed.outcome == 'failure' ||
+           steps.dbt_daily_run.outcome == 'failure' ||
+           steps.dbt_test.outcome == 'failure')
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          DBT_SEED_OUTCOME: ${{ steps.dbt_seed.outcome }}
+          DBT_DAILY_RUN_OUTCOME: ${{ steps.dbt_daily_run.outcome }}
+          DBT_TEST_OUTCOME: ${{ steps.dbt_test.outcome }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo '::warning::SLACK_WEBHOOK_URL is not configured; dbt failure notification was skipped.'
+            exit 0
+          fi
+
+          payload_file="${RUNNER_TEMP}/dbt-pipeline-slack.json"
+          export PAYLOAD_FILE="${payload_file}"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          outcomes = {
+              "dbt seed": os.environ["DBT_SEED_OUTCOME"],
+              "dbt daily run": os.environ["DBT_DAILY_RUN_OUTCOME"],
+              "dbt test": os.environ["DBT_TEST_OUTCOME"],
+          }
+          failed = [name for name, outcome in outcomes.items() if outcome == "failure"]
+          skipped = [name for name, outcome in outcomes.items() if outcome == "skipped"]
+          text = (
+              f"dbt pipeline failure for {os.environ['REPOSITORY']} "
+              f"({os.environ['WORKFLOW']}).\n"
+              f"Failed: {', '.join(failed) or 'none'}\n"
+              f"Skipped: {', '.join(skipped) or 'none'}\n"
+              f"Run: {os.environ['RUN_URL']}"
+          )
+          Path(os.environ["PAYLOAD_FILE"]).write_text(
+              json.dumps({"text": text}), encoding="utf-8"
+          )
+          PY
+          curl --silent --show-error --fail-with-body \
+            --connect-timeout 10 --max-time 30 \
+            --retry 2 --retry-all-errors --retry-max-time 60 \
+            -H 'Content-Type: application/json' \
+            --data-binary @"${payload_file}" \
+            "${SLACK_WEBHOOK_URL}"
 
       - name: Clean up keyfile
         if: always()
