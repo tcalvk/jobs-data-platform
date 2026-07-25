@@ -3,12 +3,55 @@ version: 2
 models:
   - name: dim_job_listings
     description: One row per job listing.
+    config:
+      contract:
+        enforced: true
     columns:
-      - name: job_id
-        data_tests:
-          - unique
-          - not_null
+      - name: created_at_utc
+        description: UTC timestamp when the listing was collected.
+        data_type: timestamp
+      - name: created_at_mst
+        description: Mountain time when the listing was collected.
+        data_type: datetime
+      - name: platform_job_id
+        description: Job identifier assigned by the source platform.
+        data_type: string
+      - name: job_title
+        description: Title of the advertised role.
+        data_type: string
+      - name: company_name
+        description: Name of the hiring company.
+        data_type: string
+      - name: search_location
+        description: Location used to find the listing.
+        data_type: string
+      - name: search_term
+        description: Search term used to find the listing.
+        data_type: string
+      - name: job_location
+        description: Advertised location of the role.
+        data_type: string
+      - name: job_platform
+        description: Platform where the listing was published.
+        data_type: string
+      - name: posted_date_parsed
+        description: Parsed date when the listing was posted.
+        data_type: date
+      - name: schedule_type
+        description: Advertised employment schedule or type.
+        data_type: string
+      - name: low_annual_pay_range
+        description: Lower bound of the annualized pay range.
+        data_type: float64
+      - name: high_annual_pay_range
+        description: Upper bound of the annualized pay range.
+        data_type: float64
+      - name: job_description
+        description: Full text of the job description.
+        data_type: string
       - name: data_source
+        description: Source pipeline that supplied the listing.
+        data_type: string
         data_tests:
           - not_null
           - accepted_values:
@@ -16,6 +59,18 @@ models:
                 values:
                   - Serpapi
                   - LinkedIn
+      - name: degree_requirement
+        description: Degree requirement extracted from the listing.
+        data_type: string
+      - name: source_link
+        description: URL of the source job listing.
+        data_type: string
+      - name: job_id
+        description: Unique identifier for the normalized job listing.
+        data_type: string
+        data_tests:
+          - unique
+          - not_null
 
   - name: dim_job_skills
     description: One row per skill associated with each job listing and data source.
@@ -43,6 +98,9 @@ models:
 
   - name: fact_scraped_jobs
     description: One row per job listing scrape event.
+    config:
+      contract:
+        enforced: true
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -50,20 +108,58 @@ models:
               - job_id
               - created_at_utc
     columns:
-      - name: job_id
-        data_tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_job_listings')
-                field: job_id
       - name: created_at_utc
+        description: UTC timestamp when the listing was collected.
+        data_type: timestamp
         data_tests:
           - not_null
+      - name: created_at_mst
+        description: Mountain/Denver local time when the listing was collected.
+        data_type: datetime
       - name: created_date
+        description: UTC date when the listing was collected.
+        data_type: date
         data_tests:
           - not_null
+      - name: platform_job_id
+        description: Job identifier assigned by the source platform.
+        data_type: string
+      - name: job_title
+        description: Title of the advertised role.
+        data_type: string
+      - name: company_name
+        description: Name of the hiring company.
+        data_type: string
+      - name: search_location
+        description: Location used to find the listing.
+        data_type: string
+      - name: search_term
+        description: Search term used to find the listing.
+        data_type: string
+      - name: job_location
+        description: Advertised location of the role.
+        data_type: string
+      - name: job_platform
+        description: Platform where the listing was published.
+        data_type: string
+      - name: posted_date_parsed
+        description: Parsed date when the listing was posted.
+        data_type: date
+      - name: schedule_type
+        description: Advertised employment schedule or type.
+        data_type: string
+      - name: low_annual_pay_range
+        description: Lower bound of the annualized pay range.
+        data_type: float64
+      - name: high_annual_pay_range
+        description: Upper bound of the annualized pay range.
+        data_type: float64
+      - name: job_description
+        description: Full text of the job description.
+        data_type: string
       - name: data_source
+        description: Source pipeline that supplied the listing.
+        data_type: string
         data_tests:
           - not_null
           - accepted_values:
@@ -71,3 +167,12 @@ models:
                 values:
                   - Serpapi
                   - LinkedIn
+      - name: job_id
+        description: Unique identifier for the normalized job listing.
+        data_type: string
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_job_listings')
+                field: job_id
