@@ -1,0 +1,29 @@
+name: Deploy Dagster
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "orchestration/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobs-data-platform-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to tangent-server
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - tangent
+    timeout-minutes: 15
+    steps:
+      - name: Run deployment
+        run: /home/kleintan000/scripts/deploy-jobs-data-platform
