@@ -1,0 +1,20 @@
+# Install as $DAGSTER_HOME/dagster.yaml. Keep this directory on local persistent disk.
+storage:
+  sqlite:
+    base_dir: /var/lib/dagster/storage
+compute_logs:
+  module: dagster._core.storage.local_compute_log_manager
+  class: LocalComputeLogManager
+  config:
+    base_dir: /var/lib/dagster/compute_logs
+run_coordinator:
+  module: dagster._core.run_coordinator
+  class: QueuedRunCoordinator
+  config:
+    tag_concurrency_limits:
+      - key: workload
+        value: serpapi_load_jobs
+        limit: 1
+run_launcher:
+  module: dagster._core.launcher
+  class: DefaultRunLauncher

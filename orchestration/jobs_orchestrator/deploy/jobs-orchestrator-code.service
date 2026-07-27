@@ -1,0 +1,15 @@
+[Unit]
+Description=Jobs Orchestrator Dagster gRPC code server
+After=network.target
+[Service]
+Type=simple
+User=dagster
+Group=dagster
+WorkingDirectory=/opt/jobs-data-platform/orchestration/jobs_orchestrator
+Environment=DAGSTER_HOME=/var/lib/dagster
+EnvironmentFile=/etc/jobs-orchestrator/environment
+ExecStart=/opt/jobs-data-platform/.venv/bin/dagster code-server start -m jobs_orchestrator.definitions -h 127.0.0.1 -p 4000 --use-python-environment-entry-point
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target
