@@ -1,0 +1,16 @@
+[Unit]
+Description=Jobs Orchestrator Dagster webserver
+After=network.target jobs-orchestrator-code.service
+Requires=jobs-orchestrator-code.service
+[Service]
+Type=simple
+User=dagster
+Group=dagster
+WorkingDirectory=/opt/jobs-data-platform/orchestration/jobs_orchestrator
+Environment=DAGSTER_HOME=/var/lib/dagster
+EnvironmentFile=/etc/jobs-orchestrator/environment
+ExecStart=/opt/jobs-data-platform/.venv/bin/dagster-webserver -w /var/lib/dagster/workspace.yaml -h 127.0.0.1 -p 3000
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

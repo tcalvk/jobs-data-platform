@@ -1,18 +1,15 @@
 [project]
 name = "jobs_orchestrator"
 version = "0.1.0"
-description = "Add your description here"
+description = "Self-hosted Dagster orchestration for jobs-data-platform"
 readme = "README.md"
-requires-python = ">=3.10,<3.15"
+requires-python = ">=3.11,<3.13"
 dependencies = [
-    "dagster",
-    "dagster-cloud",
-]
-
-[project.optional-dependencies]
-dev = [
-    "dagster-webserver",
-    "pytest",
+    "dagster==1.13.15",
+    "dagster-webserver==1.13.15",
+    "google-cloud-bigquery==3.40.1",
+    "google-cloud-storage==3.1.1",
+    "python-dotenv==1.1.0",
 ]
 
 [build-system]
