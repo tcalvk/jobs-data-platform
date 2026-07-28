@@ -364,10 +364,10 @@ def main() -> None:
         timestamp = _timestamp_slug()
         if gcs_prefix:
             object_name = (
-                f"{gcs_prefix}/{source_name}/{row['query_id']}/{timestamp}.jsonl"
+                f"{gcs_prefix}/{source_name}/incoming/{row['query_id']}_{timestamp}.jsonl"
             )
         else:
-            object_name = f"{source_name}/{row['query_id']}/{timestamp}.jsonl"
+            object_name = f"{source_name}/incoming/{row['query_id']}_{timestamp}.jsonl"
         _upload_jsonl(storage_client, bucket_name, object_name, records)
         print(f"Uploaded {len(records)} records to gs://{bucket_name}/{object_name}")
 
