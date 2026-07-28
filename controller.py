@@ -72,7 +72,6 @@ def main(argv: list[str]) -> int:
     #   jobs_data_platform/ingest/google.py    -> main()
     TASKS: Dict[str, str] = {
         "serpapi_get_jobs": "dags.ingest.serpapi_get_jobs",
-        "gcs_to_bq_load": "dags.ao.gcs_to_bq_load",
         "enrich_skills": "dags.ao.enrich_skills",
         #"google_jobs": "jobs_data_platform.ingest.google_jobs",
         # add more here...
