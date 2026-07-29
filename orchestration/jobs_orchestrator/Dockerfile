@@ -23,7 +23,6 @@ RUN pip install --no-cache-dir \
     "dagster-postgres==${DAGSTER_VERSION}" \
     "dagster-docker==${DAGSTER_VERSION}"
 
-COPY ingestion /opt/jobs-data-platform/ingestion
 COPY orchestration/jobs_orchestrator \
     /opt/jobs-data-platform/orchestration/jobs_orchestrator
 
