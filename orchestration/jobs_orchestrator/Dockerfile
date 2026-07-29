@@ -20,8 +20,8 @@ RUN pip install --no-cache-dir \
     -r /opt/jobs-data-platform/requirements-prod.txt
 
 RUN pip install --no-cache-dir \
-    "dagster-postgres==${DAGSTER_VERSION}" \
-    "dagster-docker==${DAGSTER_VERSION}"
+    "dagster-postgres==${DAGSTER_LIBRARY_VERSION}" \
+    "dagster-docker==${DAGSTER_LIBRARY_VERSION}"
 
 COPY orchestration/jobs_orchestrator \
     /opt/jobs-data-platform/orchestration/jobs_orchestrator
