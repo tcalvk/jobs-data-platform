@@ -33,14 +33,4 @@ RUN pip install --no-cache-dir \
 
 EXPOSE 4000
 
-CMD [
-    "dagster",
-    "api",
-    "grpc",
-    "--host",
-    "0.0.0.0",
-    "--port",
-    "4000",
-    "--module-name",
-    "jobs_orchestrator.definitions"
-]
+CMD ["dagster", "api", "grpc", "--host", "0.0.0.0", "--port", "4000", "--module-name", "jobs_orchestrator.definitions"]
