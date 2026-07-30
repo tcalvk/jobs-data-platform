@@ -11,7 +11,7 @@ from jobs_orchestrator.assets.serpapi_load_jobs.file_processing import is_direct
 from jobs_orchestrator.resources.gcp import GcpResource
 
 
-MAX_RUNS_PER_TICK = 10
+MAX_RUNS_PER_TICK = 100
 WORKLOAD_TAG = "serpapi_load_jobs"
 
 
@@ -33,7 +33,7 @@ def _cursor_identities(cursor: str | None) -> set[str]:
 @sensor(
     name="serpapi_load_jobs_sensor",
     job=serpapi_load_jobs_job,
-    minimum_interval_seconds=14_400,
+    minimum_interval_seconds=1800,
 )
 def serpapi_load_jobs_sensor(
     context: SensorEvaluationContext, gcp: GcpResource
