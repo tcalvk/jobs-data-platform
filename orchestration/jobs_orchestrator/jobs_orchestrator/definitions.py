@@ -16,6 +16,7 @@ from jobs_orchestrator.assets.serpapi_load_jobs.asset import (
     serpapi_load_jobs_job,
 )
 from jobs_orchestrator.assets.serpapi_load_jobs.sensor import serpapi_load_jobs_sensor
+from jobs_orchestrator.resources.duckdb_check import DuckDBCheckResource
 from jobs_orchestrator.resources.gcp import GcpResource
 
 gcp_resource = GcpResource(
@@ -29,10 +30,11 @@ gcp_resource = GcpResource(
     production_project_id=EnvVar("PRODUCTION_GCP_PROJECT_ID"),
     production_bucket=EnvVar("PRODUCTION_GCS_BUCKET"),
 )
+duckdb_check_resource = DuckDBCheckResource()
 
 defs = Definitions(
     assets=[serpapi_load_jobs],
     jobs=[serpapi_load_jobs_job],
     sensors=[serpapi_load_jobs_sensor],
-    resources={"gcp": gcp_resource},
+    resources={"gcp": gcp_resource, "duckdb_check": duckdb_check_resource},
 )
