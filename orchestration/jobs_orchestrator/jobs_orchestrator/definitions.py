@@ -16,7 +16,28 @@ from jobs_orchestrator.assets.serpapi_load_jobs.asset import (
     serpapi_load_jobs_job,
 )
 from jobs_orchestrator.assets.serpapi_load_jobs.sensor import serpapi_load_jobs_sensor
+from jobs_orchestrator.resources.duckdb_check import DuckDBCheckResource
 from jobs_orchestrator.resources.gcp import GcpResource
+from jobs_orchestrator.resources.slack_notifications import SlackNotificationsResource
+
+
+def _optional_slack_enabled() -> bool:
+    return os.getenv("SLACK_NOTIFICATIONS_ENABLED", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _optional_slack_timeout() -> float:
+    try:
+        return float(os.getenv("SLACK_NOTIFICATION_TIMEOUT_SECONDS", "3"))
+    except ValueError:
+        # Invalid optional notification config must not prevent core definitions
+        # from loading; delivery will use the short default timeout.
+        return 3.0
+
 
 gcp_resource = GcpResource(
     environment=EnvVar("DAGSTER_ENVIRONMENT"),
@@ -29,10 +50,19 @@ gcp_resource = GcpResource(
     production_project_id=EnvVar("PRODUCTION_GCP_PROJECT_ID"),
     production_bucket=EnvVar("PRODUCTION_GCS_BUCKET"),
 )
+duckdb_check_resource = DuckDBCheckResource()
+slack_notifications_resource = SlackNotificationsResource(
+    enabled=_optional_slack_enabled(),
+    timeout_seconds=_optional_slack_timeout(),
+)
 
 defs = Definitions(
     assets=[serpapi_load_jobs],
     jobs=[serpapi_load_jobs_job],
     sensors=[serpapi_load_jobs_sensor],
-    resources={"gcp": gcp_resource},
+    resources={
+        "gcp": gcp_resource,
+        "duckdb_check": duckdb_check_resource,
+        "slack_notifications": slack_notifications_resource,
+    },
 )
