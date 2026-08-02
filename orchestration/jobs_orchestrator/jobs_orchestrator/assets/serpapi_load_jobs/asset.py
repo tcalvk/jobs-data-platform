@@ -18,6 +18,11 @@ from jobs_orchestrator.assets.serpapi_load_jobs.file_processing import (
     lifecycle_object_name,
     transform_jsonl_to_tempfile,
 )
+from jobs_orchestrator.assets.serpapi_load_jobs.serpapi_checks import SERPAPI_CHECKS
+from jobs_orchestrator.resources.duckdb_check import (
+    DuckDBCheckExecutionError,
+    DuckDBCheckResource,
+)
 from jobs_orchestrator.resources.gcp import GcpResource
 
 
@@ -45,6 +50,7 @@ def serpapi_load_jobs(
     context: AssetExecutionContext,
     config: SerpapiLoadJobsConfig,
     gcp: GcpResource,
+    duckdb_check: DuckDBCheckResource,
 ) -> MaterializeResult:
     """Fully validate, append, then archive one exact GCS object generation."""
     bucket = gcp.bucket()
@@ -102,6 +108,17 @@ def serpapi_load_jobs(
                 )
             ) from exc
         transformed, row_count = transform_jsonl_to_tempfile(source, source_uri)
+        check_result = duckdb_check.run_checks(transformed, SERPAPI_CHECKS)
+        if not check_result.passed:
+            failed_checks = ", ".join(
+                f"{check.name}={check.failed_row_count}"
+                for check in check_result.checks
+                if check.failed_row_count
+            )
+            raise InputValidationError(
+                "duckdb_check_failed",
+                f"DuckDB validation failed for {check_result.row_count} rows: {failed_checks}.",
+            )
         load_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
             write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
@@ -137,6 +154,24 @@ def serpapi_load_jobs(
                 "attempt": attempt,
             }
         )
+    except DuckDBCheckExecutionError as exc:
+        if context.retry_number < 2:
+            delay = _retry_delay(context.retry_number)
+            context.log.warning(
+                "DuckDB validation was inconclusive for %s on attempt %s/3: %s. "
+                "Retrying in %.1fs.",
+                source_uri,
+                attempt,
+                exc,
+                delay,
+            )
+            raise RetryRequested(max_retries=2, seconds_to_wait=delay) from exc
+        raise Failure(
+            description=(
+                f"DuckDB validation remained inconclusive after three attempts for {source_uri}; "
+                "the source remains incoming and was not submitted to BigQuery."
+            )
+        ) from exc
     except InputValidationError as exc:
         # Input is never retried. A failed reject move deliberately leaves the source incoming.
         reject(exc.category)
