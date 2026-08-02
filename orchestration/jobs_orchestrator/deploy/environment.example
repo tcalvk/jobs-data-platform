@@ -1,0 +1,18 @@
+# Copy to /etc/jobs-orchestrator/environment, restrict permissions, and replace values.
+DAGSTER_ENVIRONMENT=prod
+GCP_PROJECT_ID=replace-with-project-id
+GCS_BUCKET=replace-with-bucket
+GCS_INCOMING_PREFIX=serpapi/incoming
+GCS_ARCHIVE_PREFIX=serpapi/archive
+GCS_REJECT_PREFIX=serpapi/reject
+BQ_RAW_TABLE_ID=replace-with-project-id.raw.serpapi_jobs
+PRODUCTION_GCP_PROJECT_ID=replace-with-production-project-id
+PRODUCTION_GCS_BUCKET=replace-with-production-bucket
+GOOGLE_APPLICATION_CREDENTIALS=/replace-with/service-account.json
+
+# Optional per-file rejection notifications. Keep the webhook URL secret and out of Git.
+SLACK_NOTIFICATIONS_ENABLED=false
+# SLACK_WEBHOOK_URL=replace-in-the-private-environment-file
+# SLACK_NOTIFICATION_TIMEOUT_SECONDS=3
+# Optional; omit unless this is the externally reachable base URL for this Dagster UI.
+# DAGSTER_WEB_URL=https://replace-with-dagster-host

@@ -49,6 +49,19 @@ three-attempt retry policy. Invalid UTF-8, malformed/non-object JSON, blank-only
 non-`.jsonl` files move to reject. If a reject move fails, the source remains
 incoming: fix the storage failure and manually re-execute that generation.
 
+Per-file Slack rejection notifications are optional. They are attempted only
+after the reject copy, reject metadata patch, and source-generation deletion
+succeed; Slack failures are logged and never change the rejection result. Set
+`SLACK_NOTIFICATIONS_ENABLED=true` and `SLACK_WEBHOOK_URL` to a secret standard
+Slack Incoming Webhook URL to enable them. The URL must use HTTPS and Slack's
+standard `/services/...` webhook path. `SLACK_NOTIFICATION_TIMEOUT_SECONDS`
+defaults to 3 and must be greater than 0 and at most 10 seconds.
+Optionally set `DAGSTER_WEB_URL` to the real Dagster UI base URL to add a run
+link. Malformed URLs, unsupported schemes, credentials, queries, and fragments
+are safely omitted without suppressing the Slack notification. Never put the
+webhook URL in Git. Slack HTTP redirects are refused so the secret URL and
+message payload are never forwarded to another URL.
+
 ## Ubuntu standalone deployment
 
 `deploy/` provides templates for one localhost-bound gRPC code server, daemon,
@@ -61,9 +74,10 @@ and webserver. This is neither a container nor a production cutover.
    `/etc/jobs-orchestrator`, all with restrictive `dagster` ownership.
 3. Install `deploy/dagster.yaml.example` as `$DAGSTER_HOME/dagster.yaml` and
    `deploy/workspace.yaml.example` as `/var/lib/dagster/workspace.yaml`.
-4. Create `/etc/jobs-orchestrator/environment` outside Git with the complete
-   environment contract and `GOOGLE_APPLICATION_CREDENTIALS` pointing to a
-   `dagster`-owned service-account file with mode `0600` or stricter.
+4. Copy `deploy/environment.example` to `/etc/jobs-orchestrator/environment`
+   outside Git, complete its environment contract, and point
+   `GOOGLE_APPLICATION_CREDENTIALS` to a `dagster`-owned service-account file
+   with mode `0600` or stricter. Keep the environment file equally restricted.
 5. Install the three systemd templates, run `systemctl daemon-reload`, enable,
    and start them. Use an SSH tunnel to access the localhost-only UI unless a
    separately secured reverse proxy is introduced.
