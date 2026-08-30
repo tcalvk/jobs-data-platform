@@ -2,9 +2,9 @@
 
 An end-to-end data platform that turns job postings into practical labor-market intelligence for job seekers and recruiters.
 
-[Live dashboard](<YOUR_LIVE_DASHBOARD_URL>) · [Portfolio / contact](<YOUR_PORTFOLIO_OR_LINKEDIN_URL>)
+[Live dashboard](https://jobs-data-platform.vercel.app/) · [LinkedIn / Contact](https://www.linkedin.com/in/tanner-klein-411bb31a2/)
 
-![Career Opportunity Explorer](assets/Screenshot%202026-06-14%20at%209.32.29%E2%80%AFAM.png)
+![Career Opportunity Explorer](./assets/Screenshot%202026-08-29%20at%2010.24.21%E2%80%AFPM.png)
 
 ## Why I built this
 
@@ -35,14 +35,13 @@ Users can filter results by job title, platform, listing status, date range, loc
 flowchart LR
     A[SerpAPI job postings] --> B[Python ingestion jobs]
     B --> C[Google Cloud Storage<br/>raw files]
-    C --> D[BigQuery<br/>raw tables]
+    C --> I[Dagster orchestration<br/>validation & notifications]
+    I --> D[BigQuery<br/>raw tables]
     D --> E[dbt]
     E --> F[Reporting models<br/>BigQuery]
     D --> G[Skill enrichment]
     G --> E
     F --> H[Evidence dashboards]
-    I[Dagster orchestration<br/>validation & notifications] --> B
-    I --> D
 ```
 
 ## Engineering highlights
