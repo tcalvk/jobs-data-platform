@@ -24,10 +24,10 @@
 - Local GCP auth is ADC/OAuth; GitHub Actions overwrites `dbt/profiles.yml` with service-account auth from `DBT_GCP_KEY`.
 - dbt source databases default to `dev-projects-portfolio` unless `DBT_GCP_PROJECT` is set.
 - Required task env vars:
-  - `serpapi_get_jobs`: `GCS_BUCKET` plus `BQ_TABLE_ID` or `BQ_PROJECT_ID`/`GOOGLE_CLOUD_PROJECT`/`GCP_PROJECT`.
+  - `serpapi_get_jobs`: `GCS_BUCKET` plus `BQ_TABLE_ID` or `BQ_PROJECT_ID`/`GOOGLE_CLOUD_PROJECT`/`GCP_PROJECT`; it also needs one of those project variables to access the Secret Manager secret.
   - `gcs_to_bq_load`: `GCS_BUCKET`, `BQ_RAW_TABLE_ID`, `BQ_LOAD_LEDGER_ID`; `BQ_PROJECT_ID` is needed unless table IDs are fully qualified.
   - `enrich_skills`: `BQ_JOBS_DIM_TABLE_ID`, `GROQ_API_KEY_ICLOUD`, `GROQ_API_KEY_GOOGLE`, plus `BQ_PROJECT_ID`/`GOOGLE_CLOUD_PROJECT`/`GCP_PROJECT`.
-- `serpapi_get_jobs` reads SerpApi keys from `projects-portfolio-446806.seeds.serpapi_accounts`, not from a local `SERPAPI_API_KEY` env var.
+- `serpapi_get_jobs` reads ordered SerpApi accounts from the `SERPAPI_ACCOUNTS` Google Secret Manager secret. Its value must be a JSON object with a non-empty `accounts` array whose objects have `api_key` and may have `name`; it does not read a local `SERPAPI_API_KEY` env var.
 
 ## High-risk files and generated artifacts
 - Do not print or modify `jobs-evidence/sources/project_portfolio/connection.options.yaml`; it may contain base64 service-account credentials.
@@ -57,4 +57,4 @@ If dashboard filters have options associated (e.g. matching "is, contains, etc")
 A human developer may override these standards, but you don't do so unless you're told explicitly. 
 
 #### Testing/QA
-Do not run npm run sources. This is an extremely slow process and is not worth running. Let the user run manually if they choose. 
+Do not run npm run sources. This is an extremely slow process and is not worth running. Let the user run manually if they choose.

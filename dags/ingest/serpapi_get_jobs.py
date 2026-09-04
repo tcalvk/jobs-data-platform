@@ -14,6 +14,7 @@ from urllib.parse import unquote_plus, urlencode
 from urllib.request import Request, urlopen
 
 from google.cloud import bigquery
+from google.cloud import secretmanager
 from google.cloud import storage
 if os.getenv("ENV", "local") == "local":
     from dotenv import load_dotenv
@@ -22,7 +23,7 @@ if os.getenv("ENV", "local") == "local":
 SERPAPI_ENDPOINT = "https://serpapi.com/search.json"
 DEFAULT_MAX_JOBS = 250
 DEFAULT_SOURCE_NAME = "serpapi"
-SERPAPI_ACCOUNTS_TABLE = "projects-portfolio-446806.seeds.serpapi_accounts"
+SERPAPI_ACCOUNTS_SECRET = "SERPAPI_ACCOUNTS"
 
 ##############################################################################
 # functions #
@@ -35,13 +36,57 @@ def _timestamp_slug() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-def _load_api_keys_from_bq(bq_client: bigquery.Client) -> List[str]:
-    query = f"SELECT key_string FROM `{SERPAPI_ACCOUNTS_TABLE}` ORDER BY row_num ASC"
-    rows = bq_client.query(query).result()
-    keys = [row["key_string"].strip() for row in rows if row["key_string"] and row["key_string"].strip()]
-    if not keys:
-        raise ValueError(f"No API keys found in {SERPAPI_ACCOUNTS_TABLE}.")
-    return keys
+def _resolve_gcp_project_id() -> str:
+    project_id = (
+        os.environ.get("BQ_PROJECT_ID")
+        or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("GCP_PROJECT")
+        or ""
+    ).strip()
+    if not project_id:
+        raise ValueError(
+            "Missing BQ_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or GCP_PROJECT needed "
+            "to access the SerpApi accounts secret."
+        )
+    return project_id
+
+
+def _load_api_keys_from_secret(
+    secret_client: secretmanager.SecretManagerServiceClient,
+    project_id: str,
+) -> List[str]:
+    """Load ordered SerpApi account keys without exposing secret contents."""
+    secret_version = (
+        f"projects/{project_id}/secrets/{SERPAPI_ACCOUNTS_SECRET}/versions/latest"
+    )
+    response = secret_client.access_secret_version(name=secret_version)
+    try:
+        payload = json.loads(response.payload.data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("SERPAPI_ACCOUNTS secret must contain valid UTF-8 JSON.") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("SERPAPI_ACCOUNTS secret must be a JSON object.")
+    accounts = payload.get("accounts")
+    if not isinstance(accounts, list) or not accounts:
+        raise ValueError("SERPAPI_ACCOUNTS secret must contain a non-empty accounts array.")
+
+    api_keys: List[str] = []
+    for index, account in enumerate(accounts):
+        if not isinstance(account, dict):
+            raise ValueError(f"SERPAPI_ACCOUNTS account at index {index} must be an object.")
+        api_key = account.get("api_key")
+        if not isinstance(api_key, str) or not api_key.strip():
+            raise ValueError(
+                f"SERPAPI_ACCOUNTS account at index {index} must include a non-empty api_key."
+            )
+        if "name" in account and not isinstance(account["name"], str):
+            raise ValueError(
+                f"SERPAPI_ACCOUNTS account name at index {index} must be a string."
+            )
+        api_keys.append(api_key.strip())
+
+    return api_keys
 
 
 def _resolve_table_id() -> str:
@@ -124,9 +169,7 @@ def _serpapi_fetch_with_retry(
             return _serpapi_request(params, api_key)
         except HTTPError as exc:
             if exc.code == 429:
-                raise SearchesExhaustedError(
-                    f"SerpApi key ...{api_key[-6:]} searches exhausted (429)."
-                ) from exc
+                raise SearchesExhaustedError("SerpApi account searches exhausted (429).") from exc
             last_error = exc
             if exc.code in {500, 502, 503, 504} and attempt < max_retries:
                 time.sleep(backoff_s * attempt)
@@ -196,7 +239,7 @@ def _iter_jobs_for_query(
         raise RuntimeError(f"[query_id={query_id}] All SerpApi accounts exhausted before starting.")
 
     for api_key in available_keys:
-        print(f"[query_id={query_id}] Using SerpApi account ...{api_key[-6:]}.")
+        print(f"[query_id={query_id}] Using SerpApi account.")
         next_page_token: Optional[str] = None
         collected: List[Dict[str, Any]] = []
         page = 0
@@ -218,7 +261,7 @@ def _iter_jobs_for_query(
             metadata = response.get("search_metadata", {}) or {}
             status = metadata.get("status")
             if status == "Error":
-                print(f"[query_id={query_id}] SerpApi error on account ...{api_key[-6:]}: {metadata.get('error')}. Trying next account.")
+                print(f"[query_id={query_id}] SerpApi error. Trying next account.")
                 account_exhausted = True
                 break
             if status == "Processing":
@@ -232,11 +275,11 @@ def _iter_jobs_for_query(
                         if status != "Processing":
                             break
                 if status == "Error":
-                    print(f"[query_id={query_id}] SerpApi error on account ...{api_key[-6:]} after polling: {metadata.get('error')}. Trying next account.")
+                    print(f"[query_id={query_id}] SerpApi error after polling. Trying next account.")
                     account_exhausted = True
                     break
                 if status == "Processing":
-                    print(f"[query_id={query_id}] SerpApi still processing after {poll_attempts} attempts on account ...{api_key[-6:]}. Trying next account.")
+                    print(f"[query_id={query_id}] SerpApi still processing after {poll_attempts} attempts. Trying next account.")
                     account_exhausted = True
                     break
 
@@ -259,7 +302,7 @@ def _iter_jobs_for_query(
                 # (page > 0 exhausted results, or a clean first-page no-results)
                 # should not trigger account rotation.
                 if page == 0:
-                    print(f"[query_id={query_id}] No jobs on first page from account ...{api_key[-6:]}. Trying next account.")
+                    print(f"[query_id={query_id}] No jobs on first page. Trying next account.")
                     account_exhausted = True
                 break
 
@@ -336,8 +379,10 @@ def main() -> None:
     debug_query_id = int(debug_query_id_env) if debug_query_id_env.isdigit() else None
     table_id = _resolve_table_id()
 
-    bq_client = bigquery.Client()
-    api_keys = _load_api_keys_from_bq(bq_client)
+    project_id = _resolve_gcp_project_id()
+    secret_client = secretmanager.SecretManagerServiceClient()
+    api_keys = _load_api_keys_from_secret(secret_client, project_id)
+    bq_client = bigquery.Client(project=project_id)
     exhausted_keys: set = set()
     storage_client = storage.Client()
 
