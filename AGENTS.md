@@ -28,6 +28,7 @@
   - `gcs_to_bq_load`: `GCS_BUCKET`, `BQ_RAW_TABLE_ID`, `BQ_LOAD_LEDGER_ID`; `BQ_PROJECT_ID` is needed unless table IDs are fully qualified.
   - `enrich_skills`: `BQ_JOBS_DIM_TABLE_ID`, `GROQ_API_KEY_ICLOUD`, `GROQ_API_KEY_GOOGLE`, plus `BQ_PROJECT_ID`/`GOOGLE_CLOUD_PROJECT`/`GCP_PROJECT`.
 - `serpapi_get_jobs` reads ordered SerpApi accounts from the `SERPAPI_ACCOUNTS` Google Secret Manager secret. Its value must be a JSON object with a non-empty `accounts` array whose objects have `api_key` and may have `name`; it does not read a local `SERPAPI_API_KEY` env var.
+- `serpapi_get_jobs` test controls: `DRY_RUN=true` validates its normal configuration, Secret Manager accounts, and active BigQuery query rows, then exits without SerpApi requests or uploads. `MAX_QUERIES=N` processes only the first N active rows (ordered by `query_id`), and `TEST_MAX_JOBS=N` overrides each query's `max_jobs`; both N values must be positive integers. `DRY_RUN` accepts only `true` or `false` when set and takes precedence over processing controls.
 
 ## High-risk files and generated artifacts
 - Do not print or modify `jobs-evidence/sources/project_portfolio/connection.options.yaml`; it may contain base64 service-account credentials.
