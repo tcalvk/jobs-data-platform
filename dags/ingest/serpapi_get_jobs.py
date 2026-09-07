@@ -14,6 +14,7 @@ from urllib.parse import unquote_plus, urlencode
 from urllib.request import Request, urlopen
 
 from google.cloud import bigquery
+from google.cloud import secretmanager
 from google.cloud import storage
 if os.getenv("ENV", "local") == "local":
     from dotenv import load_dotenv
@@ -22,7 +23,7 @@ if os.getenv("ENV", "local") == "local":
 SERPAPI_ENDPOINT = "https://serpapi.com/search.json"
 DEFAULT_MAX_JOBS = 250
 DEFAULT_SOURCE_NAME = "serpapi"
-SERPAPI_ACCOUNTS_TABLE = "projects-portfolio-446806.seeds.serpapi_accounts"
+SERPAPI_ACCOUNTS_SECRET = "SERPAPI_ACCOUNTS"
 
 ##############################################################################
 # functions #
@@ -35,13 +36,86 @@ def _timestamp_slug() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-def _load_api_keys_from_bq(bq_client: bigquery.Client) -> List[str]:
-    query = f"SELECT key_string FROM `{SERPAPI_ACCOUNTS_TABLE}` ORDER BY row_num ASC"
-    rows = bq_client.query(query).result()
-    keys = [row["key_string"].strip() for row in rows if row["key_string"] and row["key_string"].strip()]
-    if not keys:
-        raise ValueError(f"No API keys found in {SERPAPI_ACCOUNTS_TABLE}.")
-    return keys
+def _resolve_gcp_project_id() -> str:
+    project_id = (
+        os.environ.get("BQ_PROJECT_ID")
+        or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("GCP_PROJECT")
+        or ""
+    ).strip()
+    if not project_id:
+        raise ValueError(
+            "Missing BQ_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or GCP_PROJECT needed "
+            "to access the SerpApi accounts secret."
+        )
+    return project_id
+
+
+def _parse_dry_run() -> bool:
+    """Return the optional DRY_RUN flag, rejecting ambiguous values."""
+    value = os.environ.get("DRY_RUN")
+    if value is None:
+        return False
+    normalized = value.strip().lower()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    raise ValueError(
+        "DRY_RUN must be true or false when set "
+        f"(got {value!r})."
+    )
+
+
+def _parse_optional_positive_int(env_var: str) -> Optional[int]:
+    """Parse an optional positive integer environment control."""
+    value = os.environ.get(env_var)
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized.isascii() or not normalized.isdecimal() or int(normalized) <= 0:
+        raise ValueError(
+            f"{env_var} must be a positive integer when set (got {value!r})."
+        )
+    return int(normalized)
+
+
+def _load_api_keys_from_secret(
+    secret_client: secretmanager.SecretManagerServiceClient,
+    project_id: str,
+) -> List[str]:
+    """Load ordered SerpApi account keys without exposing secret contents."""
+    secret_version = (
+        f"projects/{project_id}/secrets/{SERPAPI_ACCOUNTS_SECRET}/versions/latest"
+    )
+    response = secret_client.access_secret_version(name=secret_version)
+    try:
+        payload = json.loads(response.payload.data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("SERPAPI_ACCOUNTS secret must contain valid UTF-8 JSON.") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("SERPAPI_ACCOUNTS secret must be a JSON object.")
+    accounts = payload.get("accounts")
+    if not isinstance(accounts, list) or not accounts:
+        raise ValueError("SERPAPI_ACCOUNTS secret must contain a non-empty accounts array.")
+
+    api_keys: List[str] = []
+    for index, account in enumerate(accounts):
+        if not isinstance(account, dict):
+            raise ValueError(f"SERPAPI_ACCOUNTS account at index {index} must be an object.")
+        api_key = account.get("api_key")
+        if not isinstance(api_key, str) or not api_key.strip():
+            raise ValueError(
+                f"SERPAPI_ACCOUNTS account at index {index} must include a non-empty api_key."
+            )
+        if "name" in account and not isinstance(account["name"], str):
+            raise ValueError(
+                f"SERPAPI_ACCOUNTS account name at index {index} must be a string."
+            )
+        api_keys.append(api_key.strip())
+
+    return api_keys
 
 
 def _resolve_table_id() -> str:
@@ -72,6 +146,7 @@ def _fetch_query_versions(bq_client: bigquery.Client, table_id: str) -> List[Dic
             active
         FROM `{table_id}`
         WHERE active = 1
+        ORDER BY query_id
     """
     rows = bq_client.query(query).result()
     return [dict(row) for row in rows]
@@ -124,9 +199,7 @@ def _serpapi_fetch_with_retry(
             return _serpapi_request(params, api_key)
         except HTTPError as exc:
             if exc.code == 429:
-                raise SearchesExhaustedError(
-                    f"SerpApi key ...{api_key[-6:]} searches exhausted (429)."
-                ) from exc
+                raise SearchesExhaustedError("SerpApi account searches exhausted (429).") from exc
             last_error = exc
             if exc.code in {500, 502, 503, 504} and attempt < max_retries:
                 time.sleep(backoff_s * attempt)
@@ -143,7 +216,9 @@ def _serpapi_fetch_with_retry(
     raise RuntimeError("SerpApi request failed without an explicit error.")
 
 
-def _normalize_query_row(row: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_query_row(
+    row: Dict[str, Any], test_max_jobs: Optional[int] = None
+) -> Dict[str, Any]:
     max_jobs = row.get("max_jobs")
     if max_jobs is None or max_jobs == 0:
         max_jobs = int(os.environ.get("DEFAULT_MAX_JOBS", str(DEFAULT_MAX_JOBS)))
@@ -161,7 +236,7 @@ def _normalize_query_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "hl": _clean(row.get("hl")),
         "gl": _clean(row.get("gl")),
         "google_domain": _clean(row.get("google_domain")),
-        "max_jobs": int(max_jobs),
+        "max_jobs": test_max_jobs if test_max_jobs is not None else int(max_jobs),
     }
 
 
@@ -196,7 +271,7 @@ def _iter_jobs_for_query(
         raise RuntimeError(f"[query_id={query_id}] All SerpApi accounts exhausted before starting.")
 
     for api_key in available_keys:
-        print(f"[query_id={query_id}] Using SerpApi account ...{api_key[-6:]}.")
+        print(f"[query_id={query_id}] Using SerpApi account.")
         next_page_token: Optional[str] = None
         collected: List[Dict[str, Any]] = []
         page = 0
@@ -218,7 +293,7 @@ def _iter_jobs_for_query(
             metadata = response.get("search_metadata", {}) or {}
             status = metadata.get("status")
             if status == "Error":
-                print(f"[query_id={query_id}] SerpApi error on account ...{api_key[-6:]}: {metadata.get('error')}. Trying next account.")
+                print(f"[query_id={query_id}] SerpApi error. Trying next account.")
                 account_exhausted = True
                 break
             if status == "Processing":
@@ -232,11 +307,11 @@ def _iter_jobs_for_query(
                         if status != "Processing":
                             break
                 if status == "Error":
-                    print(f"[query_id={query_id}] SerpApi error on account ...{api_key[-6:]} after polling: {metadata.get('error')}. Trying next account.")
+                    print(f"[query_id={query_id}] SerpApi error after polling. Trying next account.")
                     account_exhausted = True
                     break
                 if status == "Processing":
-                    print(f"[query_id={query_id}] SerpApi still processing after {poll_attempts} attempts on account ...{api_key[-6:]}. Trying next account.")
+                    print(f"[query_id={query_id}] SerpApi still processing after {poll_attempts} attempts. Trying next account.")
                     account_exhausted = True
                     break
 
@@ -259,7 +334,7 @@ def _iter_jobs_for_query(
                 # (page > 0 exhausted results, or a clean first-page no-results)
                 # should not trigger account rotation.
                 if page == 0:
-                    print(f"[query_id={query_id}] No jobs on first page from account ...{api_key[-6:]}. Trying next account.")
+                    print(f"[query_id={query_id}] No jobs on first page. Trying next account.")
                     account_exhausted = True
                 break
 
@@ -324,6 +399,10 @@ def _upload_jsonl(
 
 
 def main() -> None:
+    dry_run = _parse_dry_run()
+    max_queries = _parse_optional_positive_int("MAX_QUERIES")
+    test_max_jobs = _parse_optional_positive_int("TEST_MAX_JOBS")
+
     bucket_name = os.environ.get("GCS_BUCKET", "").strip()
     if not bucket_name:
         raise ValueError("Missing GCS_BUCKET env var.")
@@ -336,20 +415,35 @@ def main() -> None:
     debug_query_id = int(debug_query_id_env) if debug_query_id_env.isdigit() else None
     table_id = _resolve_table_id()
 
-    bq_client = bigquery.Client()
-    api_keys = _load_api_keys_from_bq(bq_client)
-    exhausted_keys: set = set()
-    storage_client = storage.Client()
+    project_id = _resolve_gcp_project_id()
+    secret_client = secretmanager.SecretManagerServiceClient()
+    api_keys = _load_api_keys_from_secret(secret_client, project_id)
+    bq_client = bigquery.Client(project=project_id)
 
     query_rows = _fetch_query_versions(bq_client, table_id)
+    if dry_run:
+        print(
+            "Dry run: validated configuration, loaded "
+            f"{len(api_keys)} SerpApi account(s), and found "
+            f"{len(query_rows)} active query version(s). No SerpApi requests "
+            "or uploads will be made."
+        )
+        return
+
     if not query_rows:
         print("No active query versions found.")
         return
 
+    if max_queries is not None:
+        query_rows = query_rows[:max_queries]
+        print(f"Limiting processing to first {len(query_rows)} active query version(s).")
+
+    exhausted_keys: set = set()
+    storage_client = storage.Client()
     failed_queries: List[str] = []
 
     for raw_row in query_rows:
-        row = _normalize_query_row(raw_row)
+        row = _normalize_query_row(raw_row, test_max_jobs=test_max_jobs)
         if not row.get("q"):
             print(f"Skipping query_id={row.get('query_id')} due to missing q.")
             continue
