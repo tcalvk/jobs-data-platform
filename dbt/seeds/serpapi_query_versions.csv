@@ -1,15 +1,15 @@
 query_id,q,location,hl,gl,max_jobs,google_domain,active
-1,data+engineer,united states,en,us,250,google.com,1
-2,data+analyst,united states,en,us,250,google.com,1
-3,client+success+manager,united states,en,us,250,google.com,1
-4,data+engineer,"Utah, United States",en,us,250,google.com,1
-5,software+engineer,united states,en,us,250,google.com,1
-6,registered+nurse,united states,en,us,250,google.com,1
-7,financial+analyst,united states,en,us,250,google.com,1
-8,marketing+manager,united states,en,us,250,google.com,1
-9,mechanical+engineer,united states,en,us,250,google.com,1
-10,product+manager,united states,en,us,250,google.com,1
-11,medical+assistant,"Utah, United States",en,us,250,google.com,1
-12,property+manager,"Utah, United States",en,us,250,google.com,0
-13,flight+instructor,united states,en,us,250,google.com,1
-14,pilot,united states,en,us,250,google.com,1
+1,data+engineer,united states,en,us,200,google.com,1
+2,data+analyst,united states,en,us,200,google.com,1
+3,client+success+manager,united states,en,us,200,google.com,1
+4,data+engineer,"Utah, United States",en,us,200,google.com,1
+5,software+engineer,united states,en,us,200,google.com,1
+6,registered+nurse,united states,en,us,200,google.com,1
+7,financial+analyst,united states,en,us,200,google.com,1
+8,marketing+manager,united states,en,us,200,google.com,1
+9,mechanical+engineer,united states,en,us,200,google.com,1
+10,product+manager,united states,en,us,200,google.com,1
+11,medical+assistant,"Utah, United States",en,us,200,google.com,1
+12,property+manager,"Utah, United States",en,us,200,google.com,0
+13,flight+instructor,united states,en,us,200,google.com,1
+14,pilot,united states,en,us,200,google.com,1
