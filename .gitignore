@@ -24,6 +24,7 @@ include/airflow_variables.dev.json
 docker-compose.override.dev.yaml
 .venv
 dbt/requirements.txt
+plans/
 
 # dbt
 dbt/target/

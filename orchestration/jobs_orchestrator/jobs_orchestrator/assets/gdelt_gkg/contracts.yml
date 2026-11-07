@@ -1,0 +1,72 @@
+# Structural landing contract; all source values remain strings.
+# Add a new version for contract changes; do not rewrite a published version.
+active_contract_version: 1
+
+contracts:
+  1:
+    source:
+      encoding: utf-8
+      delimiter: "\t"
+      header: false
+      quoting: literal
+      # Positional names: the source has no header. Count alone cannot prove
+      # that GDELT still uses the expected schema.
+      columns:
+        - field: gkg_record_id
+          +type: string
+        - field: date
+          +type: string
+        - field: source_collection_identifier
+          +type: string
+        - field: source_common_name
+          +type: string
+        - field: document_identifier
+          +type: string
+        - field: counts
+          +type: string
+        - field: v2_counts
+          +type: string
+        - field: themes
+          +type: string
+        - field: v2_themes
+          +type: string
+        - field: locations
+          +type: string
+        - field: v2_locations
+          +type: string
+        - field: persons
+          +type: string
+        - field: v2_persons
+          +type: string
+        - field: organizations
+          +type: string
+        - field: v2_organizations
+          +type: string
+        - field: v2_tone
+          +type: string
+        - field: dates
+          +type: string
+        - field: gcam
+          +type: string
+        - field: sharing_image
+          +type: string
+        - field: related_images
+          +type: string
+        - field: social_image_embeds
+          +type: string
+        - field: social_video_embeds
+          +type: string
+        - field: quotations
+          +type: string
+        - field: all_names
+          +type: string
+        - field: amounts
+          +type: string
+        - field: translation_info
+          +type: string
+        - field: extras
+          +type: string
+
+    validation:
+      invalid_file_action: reject_entire_file
+      rules: []

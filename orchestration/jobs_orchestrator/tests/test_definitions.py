@@ -15,6 +15,14 @@ class DefinitionsTests(unittest.TestCase):
         )
         Definitions.validate_loadable(defs)
 
+    def test_sample_job_selects_only_manual_gdelt_asset(self):
+        from dagster import AssetKey
+
+        job = defs.resolve_job_def("gdelt_gkg_sample_job")
+        self.assertEqual(job.asset_layer.executable_asset_keys, {AssetKey("gdelt_gkg_sample")})
+        self.assertEqual(len(defs.sensors), 1)  # Existing SerpAPI sensor only.
+        self.assertFalse(defs.schedules)
+
 
 if __name__ == "__main__":
     unittest.main()

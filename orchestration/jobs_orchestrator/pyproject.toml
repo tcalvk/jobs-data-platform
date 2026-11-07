@@ -11,6 +11,7 @@ dependencies = [
     "google-cloud-bigquery==3.40.1",
     "google-cloud-storage==3.1.1",
     "python-dotenv==1.1.0",
+    "PyYAML==6.0.3",
 ]
 
 [build-system]
@@ -20,3 +21,9 @@ build-backend = "hatchling.build"
 [tool.dagster]
 module_name = "jobs_orchestrator.definitions"
 code_location_name = "jobs_orchestrator"
+
+[tool.hatch.build.targets.wheel]
+packages = ["jobs_orchestrator"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"jobs_orchestrator/assets/gdelt_gkg/contracts.yml" = "jobs_orchestrator/assets/gdelt_gkg/contracts.yml"

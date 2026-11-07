@@ -16,6 +16,9 @@ from jobs_orchestrator.assets.serpapi_load_jobs.asset import (
     serpapi_load_jobs_job,
 )
 from jobs_orchestrator.assets.serpapi_load_jobs.sensor import serpapi_load_jobs_sensor
+from jobs_orchestrator.assets.gdelt_gkg.asset import gdelt_gkg_sample, gdelt_gkg_sample_job
+from jobs_orchestrator.assets.gdelt_gkg.ingest_asset import gdelt_gkg_ingest, gdelt_gkg_ingest_job
+from jobs_orchestrator.resources.gdelt_storage import GdeltStorageResource
 from jobs_orchestrator.resources.duckdb_check import DuckDBCheckResource
 from jobs_orchestrator.resources.gcp import GcpResource
 from jobs_orchestrator.resources.slack_notifications import SlackNotificationsResource
@@ -57,10 +60,11 @@ slack_notifications_resource = SlackNotificationsResource(
 )
 
 defs = Definitions(
-    assets=[serpapi_load_jobs],
-    jobs=[serpapi_load_jobs_job],
+    assets=[serpapi_load_jobs, gdelt_gkg_sample, gdelt_gkg_ingest],
+    jobs=[serpapi_load_jobs_job, gdelt_gkg_sample_job, gdelt_gkg_ingest_job],
     sensors=[serpapi_load_jobs_sensor],
     resources={
+        "gdelt_storage": GdeltStorageResource(project_id=os.getenv("GCP_PROJECT_ID")),
         "gcp": gcp_resource,
         "duckdb_check": duckdb_check_resource,
         "slack_notifications": slack_notifications_resource,
