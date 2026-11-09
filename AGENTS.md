@@ -1,5 +1,12 @@
 # AGENTS.md
 
+This project uses bd (beads) for issue tracking.
+
+- Run `bd prime` for workflow context and command guidance.
+- Use `bd ready`, `bd show <id>`, `bd update <id> --claim`, and `bd close <id>`.
+- Use `bd remember "insight"` for durable project facts; keep per-operator preferences in your harness's own memory.
+- Do not use markdown TODO lists for task tracking.
+
 ## Repo shape
 - `controller.py` is the Cloud Run job dispatcher; valid tasks are `serpapi_get_jobs`, `gcs_to_bq_load`, and `enrich_skills`.
 - `dags/` contains plain Python job modules with `main()` functions, not Airflow DAG definitions.

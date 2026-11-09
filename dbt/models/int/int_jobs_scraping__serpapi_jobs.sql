@@ -54,12 +54,9 @@ parsed as (
         JSON_VALUE(job_data, '$.job.detected_extensions.schedule_type') as schedule_type,
         JSON_QUERY(job_data, '$.job.apply_options') as apply_options_json,
         JSON_QUERY(job_data, '$.job.extensions') as extensions_json,
-        (
-            select ext
-            from unnest(JSON_VALUE_ARRAY(job_data, '$.job.extensions')) as ext
-            where REGEXP_CONTAINS(lower(ext), r'(?:year|hour|week|month)')
-            limit 1
-        ) as pay_info,
+        {{ serpapi_work_setting_extensions('job_data') }} as work_setting_extensions,
+        {{ serpapi_work_setting_highlights('job_data') }} as work_setting_highlights,
+        safe_cast(json_value(job_data, '$.job.detected_extensions.work_from_home') as bool) as work_from_home,
         JSON_QUERY(job_data, '$.job.job_highlights') as job_highlights_json,
         query_version_id,
         gcs_uri,
@@ -67,11 +64,39 @@ parsed as (
     from source
 ),
 
+work_setting_prepared as (
+    select
+        *,
+        {{ normalize_work_setting_text('job_title') }} as job_title_normalized,
+        {{ normalize_work_setting_text('job_description') }} as job_description_normalized,
+        {{ normalize_work_setting_text('job_location') }} as job_location_normalized,
+        array(
+            select {{ normalize_work_setting_text('extension') }}
+            from unnest(work_setting_extensions) as extension with offset as extension_offset
+            order by extension_offset
+        ) as work_setting_extensions_normalized,
+        array(
+            select as struct
+                {{ normalize_work_setting_text('highlight.title') }} as title,
+                {{ normalize_work_setting_text('highlight.item') }} as item
+            from unnest(work_setting_highlights) as highlight with offset as highlight_offset
+            order by highlight_offset
+        ) as work_setting_highlights_normalized,
+        (
+            select ext
+            from unnest(work_setting_extensions) as ext with offset as extension_offset
+            where regexp_contains(lower(ext), r'(?:year|hour|week|month)')
+            order by extension_offset
+            limit 1
+        ) as pay_info
+    from parsed
+),
+
 pay_parsed as (
     select
         *,
         REGEXP_EXTRACT_ALL(lower(pay_info), r'\d+(?:\.\d+)?\s*k?') as pay_tokens
-    from parsed
+    from work_setting_prepared
 ),
 
 pay_annualized as (
@@ -139,6 +164,14 @@ final_transform as (
         company_name,
         job_description,
         job_location,
+        job_title_normalized,
+        job_description_normalized,
+        job_location_normalized,
+        work_setting_extensions,
+        work_setting_highlights,
+        work_from_home,
+        work_setting_extensions_normalized,
+        work_setting_highlights_normalized,
         job_platform,
         job_share_link,
         source_link,

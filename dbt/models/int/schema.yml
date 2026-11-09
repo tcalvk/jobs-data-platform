@@ -2,6 +2,9 @@ version: 2
 
 models:
   - name: int_jobs_scraping__serpapi_jobs
+    description: >-
+      Parsed SerpApi jobs, including evidence-only work-setting inputs (no classification).
+      See docs/work_setting_input_preparation.md for extraction and migration details.
     columns:
       - name: query_id
         data_tests:
@@ -15,3 +18,30 @@ models:
       - name: search_location
         data_tests:
           - not_null
+      - name: job_title_normalized
+        description: "STRING. Normalized job_title; raw title is unchanged. NULL stays NULL."
+      - name: job_description_normalized
+        description: "STRING. Normalized job_description; raw description is unchanged. NULL stays NULL."
+      - name: job_location_normalized
+        description: "STRING. Normalized job_location; raw location is unchanged. NULL stays NULL."
+      - name: work_setting_extensions
+        description: >-
+          ARRAY<STRING>. Exact original string values from job.extensions in source order,
+          including duplicates and empty strings. Non-string entries ignored; missing/null/non-array yields [].
+      - name: work_setting_highlights
+        description: >-
+          ARRAY<STRUCT<title STRING, item STRING>>. Individual original string items from
+          job.job_highlights, in section then item order, with original section title (nullable).
+          Duplicates and empty items retained; non-string items ignored; absent/invalid arrays yield [].
+      - name: work_from_home
+        description: >-
+          Nullable BOOL. SAFE_CAST(JSON_VALUE(job_data, '$.job.detected_extensions.work_from_home') AS BOOL).
+          Missing, null, non-scalar or uncastable values remain NULL, never default to false.
+      - name: work_setting_extensions_normalized
+        description: >-
+          ARRAY<STRING>. Positional counterpart of work_setting_extensions, normalized with
+          NFKC, lowercase, ASCII quotes/dashes/spaces, collapsed whitespace and trim. No deduplication.
+      - name: work_setting_highlights_normalized
+        description: >-
+          ARRAY<STRUCT<title STRING, item STRING>>. Positional counterpart of work_setting_highlights;
+          title and item use the same normalization as other work-setting inputs. NULL title stays NULL.
