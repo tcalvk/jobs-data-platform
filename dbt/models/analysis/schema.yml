@@ -9,12 +9,26 @@ models:
           - unique
           - not_null
       - name: listing_status
+        description: Active or removed listing lifecycle status.
         data_tests:
           - accepted_values:
               arguments:
                 values:
                   - Active
                   - Removed
+      - name: work_setting
+        data_type: string
+        description: Precision-first role arrangement, resolved inline; missing evidence is Unknown, never Office.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Office', 'Hybrid', 'Remote', 'Unknown']
+      - name: work_setting_metadata
+        data_type: json
+        description: Native JSON object with rule, evidence (full matched-fragment array), confidence (ordinal, not calibrated probability), and conflict (winning-strength boolean). Private source metadata is excluded.
+        data_tests:
+          - not_null
       - name: first_seen_at_utc
         data_tests:
           - not_null

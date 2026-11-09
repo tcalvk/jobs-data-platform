@@ -21,6 +21,10 @@
     'data_source',
     'degree_requirement',
     'source_link',
+    'work_setting_extensions',
+    'work_setting_highlights',
+    'work_from_home',
+    'work_setting_source_metadata',
 ] %}
 
 with unioned as (

@@ -71,6 +71,18 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: work_setting_extensions
+        description: Original SerpApi extension strings; empty for LinkedIn.
+        data_type: array<string>
+      - name: work_setting_highlights
+        description: Original SerpApi highlight title/item pairs; empty for LinkedIn.
+        data_type: array<struct<title string, item string>>
+      - name: work_from_home
+        description: SerpApi detected flag; null for LinkedIn. False is not Office evidence.
+        data_type: boolean
+      - name: work_setting_source_metadata
+        description: Original LinkedIn fit_level_preferences; null for SerpApi. Not upstream inferred work_location.
+        data_type: string
 
   - name: dim_job_skills
     description: One row per skill associated with each job listing and data source.

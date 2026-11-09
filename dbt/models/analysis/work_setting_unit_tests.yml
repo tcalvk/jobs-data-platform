@@ -1,0 +1,136 @@
+version: 2
+unit_tests:
+  - name: jobs_detail_work_setting_role_contract
+    description: Actual inline model over literal input mocks. Compile or run read-only SELECT validation; dbt test adapter may materialize temporary tables.
+    model: jobs_detail
+    given:
+      - input: ref('dim_job_listings')
+        format: sql
+        fixture: work_setting_jobs
+      - input: ref('jobs_detail_day')
+        format: sql
+        rows: |
+          select cast(null as string) as job_id,
+                 cast(null as float64) as avg_annual_pay_range,
+                 cast(null as timestamp) as created_at_utc
+          from unnest(array<int64>[]) as empty_row
+    expect:
+      rows:
+        - {job_id: intellipro, work_setting: Hybrid}
+        - {job_id: gdit, work_setting: Hybrid}
+        - {job_id: walmart, work_setting: Office}
+        - {job_id: fusionauth, work_setting: Unknown}
+        - {job_id: technical_hybrid, work_setting: Unknown}
+        - {job_id: technical_remote, work_setting: Unknown}
+        - {job_id: policy, work_setting: Unknown}
+        - {job_id: geo, work_setting: Remote}
+        - {job_id: travel, work_setting: Remote}
+        - {job_id: annual, work_setting: Remote}
+        - {job_id: onboarding, work_setting: Remote}
+        - {job_id: tag_conflict, work_setting: Unknown}
+        - {job_id: tag_only, work_setting: Remote}
+        - {job_id: tag_overridden, work_setting: Office}
+        - {job_id: tag_same_sentence, work_setting: Office}
+        - job_id: 'null'
+          work_setting: Unknown
+          work_setting_metadata:
+            rule: insufficient_evidence
+            evidence: []
+            confidence: low
+            conflict: false
+        - {job_id: false_flag, work_setting: Unknown}
+        - job_id: true_flag
+          work_setting: Remote
+          work_setting_metadata:
+            rule: metadata_fallback
+            evidence:
+              - {source: serpapi_wfh, text: 'true', normalized: 'true', strength: 1, setting: Remote, conflict: false, negative_remote: false, office_days: null, remote_days: null}
+            confidence: medium
+            conflict: false
+        - {job_id: title_remote, work_setting: Remote}
+        - {job_id: title_office, work_setting: Office}
+        - {job_id: title_hybrid, work_setting: Hybrid}
+        - {job_id: title_override, work_setting: Office}
+        - {job_id: negative, work_setting: Unknown}
+        - {job_id: experience, work_setting: Remote}
+        - {job_id: strong_conflict, work_setting: Unknown}
+        - {job_id: temporal, work_setting: Unknown}
+        - {job_id: conditional, work_setting: Unknown}
+        - {job_id: unicode, work_setting: Remote}
+        - {job_id: schedule, work_setting: Hybrid}
+        - {job_id: alternating, work_setting: Hybrid}
+        - {job_id: extension, work_setting: Remote}
+        - {job_id: not_exact, work_setting: Unknown}
+        - {job_id: extension_conflict, work_setting: Unknown}
+        - {job_id: li_metadata, work_setting: Hybrid}
+        - {job_id: highlight, work_setting: Hybrid}
+        - {job_id: benefits, work_setting: Unknown}
+        - {job_id: microsoft, work_setting: Unknown}
+        - {job_id: negative_title, work_setting: Unknown}
+        - {job_id: locality, work_setting: Unknown}
+        - {job_id: negated_options, work_setting: Office}
+        - {job_id: location_options, work_setting: Unknown}
+        - {job_id: company_remote, work_setting: Unknown}
+        - {job_id: company_hybrid, work_setting: Unknown}
+        - {job_id: technical_fully_remote, work_setting: Unknown}
+        - {job_id: not_hybrid, work_setting: Remote}
+        - {job_id: remote_first_recurring, work_setting: Hybrid}
+        - {job_id: two_day_retreat, work_setting: Remote}
+        - {job_id: title_labels_conflict, work_setting: Unknown}
+        - {job_id: office_not_required, work_setting: Unknown}
+        - {job_id: office_negated_role, work_setting: Unknown}
+        - {job_id: remote_office_not_required, work_setting: Remote}
+        - {job_id: temporal_remote_first, work_setting: Unknown}
+        - {job_id: temporal_office_first, work_setting: Unknown}
+        - {job_id: hybrid_partial_office, work_setting: Hybrid}
+        - {job_id: quantified_split_mix, work_setting: Hybrid}
+        - {job_id: technical_powertrain, work_setting: Unknown}
+        - {job_id: technical_role_sensing, work_setting: Unknown}
+        - {job_id: hybrid_full_office_conflict, work_setting: Unknown}
+        - {job_id: remote_partial_office_conflict, work_setting: Unknown}
+        - {job_id: unquantified_split_conflict, work_setting: Unknown}
+        - {job_id: impossible_weekly_mix, work_setting: Unknown}
+        - {job_id: same_sentence_hybrid_conflict, work_setting: Unknown}
+        - {job_id: full_remote_weekly_conflict, work_setting: Unknown}
+        - {job_id: same_sentence_impossible_mix, work_setting: Unknown}
+        - {job_id: unrelated_remote_people, work_setting: Office}
+        - {job_id: office_not_require_you, work_setting: Unknown}
+        - {job_id: office_not_require_candidates, work_setting: Unknown}
+        - {job_id: office_not_require_working, work_setting: Unknown}
+        - {job_id: office_passive_not_required, work_setting: Unknown}
+        - {job_id: office_passive_not_mandatory, work_setting: Unknown}
+        - {job_id: office_not_required_to_work, work_setting: Unknown}
+        - {job_id: title_prohibited_remote, work_setting: Unknown}
+        - {job_id: title_prohibited_remote_allowed, work_setting: Unknown}
+        - {job_id: wfh_prohibited_remote, work_setting: Unknown}
+        - {job_id: metadata_prohibited_remote, work_setting: Unknown}
+        - {job_id: metadata_negated_office, work_setting: Unknown}
+        - {job_id: negative_office_positive_remote, work_setting: Remote}
+        - {job_id: negative_office_positive_office, work_setting: Office}
+        - {job_id: remote_experience_not_required, work_setting: Remote}
+        - {job_id: remote_unavailable_positive_office, work_setting: Office}
+        - {job_id: onboarding_remote_then_office, work_setting: Unknown}
+        - {job_id: onboarding_office_then_remote_month, work_setting: Unknown}
+        - {job_id: onboarding_short_remote_then_office, work_setting: Unknown}
+        - {job_id: onboarding_short_office_then_remote, work_setting: Remote}
+        - {job_id: quantified_imperative_impossible, work_setting: Unknown}
+        - {job_id: quantified_imperative_compatible, work_setting: Hybrid}
+        - {job_id: quantified_imperative_split_compatible, work_setting: Hybrid}
+        - {job_id: remote_not_required_quantified, work_setting: Unknown}
+        - {job_id: remote_not_required_quantified_office, work_setting: Office}
+        - {job_id: remote_not_necessary_quantified, work_setting: Unknown}
+        - {job_id: remote_not_necessary_quantified_office, work_setting: Office}
+        - {job_id: remote_passive_not_required_quantified, work_setting: Unknown}
+        - {job_id: remote_passive_not_required_quantified_office, work_setting: Office}
+        - {job_id: wfh_passive_neutral, work_setting: Unknown}
+        - {job_id: wfh_passive_neutral_office, work_setting: Office}
+        - {job_id: remote_obligation_active_neutral, work_setting: Unknown}
+        - {job_id: remote_obligation_active_neutral_office, work_setting: Office}
+        - {job_id: remote_obligation_neutral_positive, work_setting: Remote}
+        - {job_id: office_obligation_neutral_quantified, work_setting: Unknown}
+        - {job_id: office_obligation_neutral_no_mix, work_setting: Remote}
+        - {job_id: remote_permission_quantified_title, work_setting: Unknown}
+        - {job_id: remote_permission_unavailable_title, work_setting: Unknown}
+        - {job_id: remote_neutral_metadata, work_setting: Remote}
+        - {job_id: remote_passive_work_neutral, work_setting: Unknown}
+        - {job_id: remote_passive_work_neutral_office, work_setting: Office}

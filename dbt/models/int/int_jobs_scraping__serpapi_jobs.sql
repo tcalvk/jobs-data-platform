@@ -170,6 +170,7 @@ final_transform as (
         work_setting_extensions,
         work_setting_highlights,
         work_from_home,
+        cast(null as string) as work_setting_source_metadata,
         work_setting_extensions_normalized,
         work_setting_highlights_normalized,
         job_platform,

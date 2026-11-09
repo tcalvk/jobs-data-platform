@@ -91,6 +91,7 @@ parse as (
             ELSE CAST(REGEXP_EXTRACT(fit_level_preferences, r'-\s*\$(\d+(?:,\d{3})?)') AS INT64)
     END AS high_annual_pay_range
     ,job_description
+    ,fit_level_preferences
     ,'LinkedIn' as data_source,
     cast(null as string) as company_name,
     'LinkedIn' as job_platform,
@@ -118,6 +119,10 @@ final_transform as (
         high_annual_pay_range,
         job_description,
         data_source,
+        array<string>[] as work_setting_extensions,
+        array<struct<title string, item string>>[] as work_setting_highlights,
+        cast(null as bool) as work_from_home,
+        fit_level_preferences as work_setting_source_metadata,
         cast(null as string) as degree_requirement,
         cast(null as string) as source_link
     from parse
