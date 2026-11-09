@@ -94,12 +94,14 @@ def main():
     parser.add_argument('--project', default='projects-portfolio-446806')
     parser.add_argument('--sample', type=Path, help='Optional independent snippet JSON; snippets are NOT complete postings')
     parser.add_argument('--graph-dry-run', action='store_true', help='Dry-run nonincremental/incremental SELECT graphs from deployed staging, no materialization')
+    parser.add_argument('--target-path', type=Path, help='dbt target directory (permits immutable staged compilation artifacts)')
     parser.add_argument('--previous-audit-snapshot', type=Path, help='Compare every label and complete audit object to pre-JSON-migration fixture results')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    manifest = json.loads((root / 'dbt/target/manifest.json').read_text())
+    target = args.target_path or root / 'dbt/target'
+    manifest = json.loads((target / 'manifest.json').read_text())
     node = manifest['nodes']['model.jobs_data_platform.jobs_detail']
-    model = (root / 'dbt/target/compiled/jobs_data_platform/models/analysis/jobs_detail.sql').read_text()
+    model = (target / 'compiled/jobs_data_platform/models/analysis/jobs_detail.sql').read_text()
     assert node['raw_code'].strip() == (root / 'dbt/models/analysis/jobs_detail.sql').read_text().strip(), 'stale dbt compile: model changed'
     assert node.get('compiled_code', '').strip() == model.strip(), 'compiled SQL differs from manifest; rerun dbt compile'
     for name in ('normalize_work_setting_text', 'work_setting_patterns'):
@@ -145,7 +147,7 @@ def main():
     print('Actual singular invariant test on fixtures: PASS')
 
     if args.graph_dry_run:
-        graph_dry_run(client, root, manifest, model, fixture_schema)
+        graph_dry_run(client, root, manifest, model, fixture_schema, target)
     if args.sample:
         # Substitute only fixture input JSON. Classifier and typed projection stay unchanged.
         sample = json.loads(args.sample.read_text())
@@ -167,7 +169,7 @@ def main():
                           'job_id': job.job_id, 'differences': differences}, indent=2))
 
 
-def graph_dry_run(client, root, manifest, model, fixture_schema):
+def graph_dry_run(client, root, manifest, model, fixture_schema, target):
     """Hydrate ONLY new int/dimension SQL; deployed staging/day are read inputs.
 
     Production has no prep columns yet. Both branches render original int files
@@ -193,7 +195,7 @@ def graph_dry_run(client, root, manifest, model, fixture_schema):
             env.globals.update({name: getattr(module, name) for name in dir(module) if not name.startswith('_')})
         int_sql = [env.from_string((root / f'dbt/models/int/int_jobs_scraping__{name}_jobs.sql').read_text()).render()
                    for name in ('serpapi', 'linkedin')]
-        dim = (root / 'dbt/target/compiled/jobs_data_platform/models/marts/dim_job_listings.sql').read_text()
+        dim = (target / 'compiled/jobs_data_platform/models/marts/dim_job_listings.sql').read_text()
         assert manifest['nodes']['model.jobs_data_platform.dim_job_listings']['raw_code'].strip() == (root / 'dbt/models/marts/dim_job_listings.sql').read_text().strip(), 'stale dimension compile'
         assert manifest['nodes']['model.jobs_data_platform.dim_job_listings'].get('compiled_code', '').strip() == dim.strip(), 'dimension compiled SQL differs from manifest'
         detail = model

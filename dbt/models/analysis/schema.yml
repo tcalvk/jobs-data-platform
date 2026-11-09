@@ -18,7 +18,7 @@ models:
                   - Removed
       - name: work_setting
         data_type: string
-        description: Precision-first role arrangement, resolved inline; missing evidence is Unknown, never Office.
+        description: Role arrangement resolved inline; explicit evidence wins, then bounded company/duty inference with low confidence. Missing evidence remains Unknown, never defaults to Office.
         data_tests:
           - not_null
           - accepted_values:
@@ -26,7 +26,7 @@ models:
                 values: ['Office', 'Hybrid', 'Remote', 'Unknown']
       - name: work_setting_metadata
         data_type: json
-        description: Native JSON object with rule, evidence (full matched-fragment array), confidence (ordinal, not calibrated probability), and conflict (winning-strength boolean). Private source metadata is excluded.
+        description: Native JSON object with rule, evidence (full matched-fragment array), confidence (high explicit / medium metadata or tag / low inference or Unknown, not calibrated), and conflict (winning-strength boolean). Company and physical-duty inference have named low-confidence rules and original excerpts. Private source metadata is excluded.
         data_tests:
           - not_null
       - name: first_seen_at_utc

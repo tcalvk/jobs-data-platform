@@ -74,7 +74,9 @@ with src as (
     select *, array_concat(
         [struct('title' as source, job_title as text, 3 as strength)],
         array(select as struct 'description' as source, fragment as text, 4 as strength
-              from unnest(split(regexp_replace(coalesce(job_description, ''), r'[.;]+', chr(30)), chr(30))) fragment),
+              from unnest(split(regexp_replace(
+                  regexp_replace(coalesce(job_description, ''), r'(?i)\b(in[- ]person|remote|hybrid|onsite|on-site|office-based)\s*;\s*(remote|hybrid|onsite|on-site|office-based|in[- ]person)\b', r'\1 or \2'),
+                  r'[.;]+', chr(30)), chr(30))) fragment),
         array(select as struct concat('highlight:', h.title) as source, h.item as text, 4 as strength
               from unnest(work_setting_highlights) h
               where lower(trim(h.title)) in ('responsibilities', 'job responsibilities', 'role', 'work location', 'work arrangement', 'schedule', 'description')),
@@ -98,9 +100,28 @@ with src as (
         select as struct i.*,
             -- Experience is not a prohibition on remote attendance.
             regexp_replace(regexp_replace(normalized, r'\bno remote work experience\b', ''), r'{{ patterns.remote_neutral }}', '') as contextual,
-            regexp_replace(normalized, r'{{ patterns.office_negation }}', '') as office_context,
-            safe_cast(regexp_extract(regexp_replace(normalized, r'{{ patterns.office_negation }}', ''), r'{{ patterns.office_week }}') as int64) as office_days,
-            safe_cast(regexp_extract(regexp_replace(regexp_replace(normalized, r'{{ patterns.remote_neutral }}', ''), r'{{ patterns.negation }}', ''), r'{{ patterns.remote_week }}') as int64) as remote_days,
+            regexp_replace(regexp_replace(
+                if(regexp_contains(normalized, r'{{ patterns.office_substantive }}|{{ patterns.office_week }}|{{ patterns.office_days_lead }}'),
+                   normalized,
+                   regexp_replace(normalized, r'{{ patterns.office_logistics }}', '')),
+                r'{{ patterns.office_negation }}', ''), r'{{ patterns.office_label_negation }}', '') as office_context,
+            coalesce(
+                safe_cast(regexp_extract(regexp_replace(
+                    if(regexp_contains(normalized, r'{{ patterns.office_substantive }}|{{ patterns.office_week }}|{{ patterns.office_days_lead }}'),
+                       normalized,
+                       regexp_replace(normalized, r'{{ patterns.office_logistics }}', '')),
+                    r'{{ patterns.office_negation }}', ''), r'{{ patterns.office_week }}') as int64),
+                safe_cast(regexp_extract(regexp_replace(
+                    if(regexp_contains(normalized, r'{{ patterns.office_substantive }}|{{ patterns.office_week }}|{{ patterns.office_days_lead }}'),
+                       normalized,
+                       regexp_replace(normalized, r'{{ patterns.office_logistics }}', '')),
+                    r'{{ patterns.office_negation }}', ''), r'{{ patterns.office_days_lead }}') as int64)
+            ) as office_days,
+            coalesce(
+                safe_cast(regexp_extract(regexp_replace(regexp_replace(normalized, r'{{ patterns.remote_neutral }}', ''), r'{{ patterns.negation }}', ''), r'{{ patterns.remote_week }}') as int64),
+                if(regexp_contains(normalized, r'{{ patterns.office_week }}|{{ patterns.office_days_lead }}'), safe_cast(regexp_extract(normalized, r'{{ patterns.remote_tail }}') as int64), null),
+                if(regexp_contains(regexp_replace(regexp_replace(normalized, r'{{ patterns.remote_neutral }}', ''), r'{{ patterns.negation }}', ''), r'{{ patterns.friday_home }}'), 1, null)
+            ) as remote_days,
             strength >= 3 as role_source
         from unnest(_ws_inputs) i
     ) as _ws_inputs
@@ -117,10 +138,11 @@ with src as (
                 and regexp_contains(contextual, r'{{ patterns.role_remote }}|\b(?:then|thereafter|followed by) (?:fully |100% )?remote\b')
                 and not regexp_contains(contextual, r'\bfirst (?:[a-z0-9]+ )?(?:weeks?|months?|years?)\b|\bremote\b[^.;]{0,100}\bthen (?:work )?(?:onsite|on-site|in[- ]office)\b') as short_onsite_onboarding,
             length(contextual) <= 240
-                and regexp_contains(contextual, r'{{ patterns.recurring }}')
+                and (regexp_contains(contextual, r'{{ patterns.recurring }}') or (office_days is not null and remote_days is not null))
                 and regexp_contains(office_context, r'\b(?:onsite|on-site|in[- ]office)\b')
                 and (
                     regexp_contains(regexp_replace(contextual, r'{{ patterns.negation }}', ''), r'{{ patterns.role_remote }}|{{ patterns.remote_week }}|\bremote [1-4] days? (?:per|a|each) week\b')
+                    or (office_days is not null and remote_days is not null)
                     or (regexp_contains(contextual, r'\balternat(?:e|ing) weeks?\b')
                         and regexp_contains(contextual, r'\b(?:remote|remotely|from home)\b'))
                 )
@@ -138,7 +160,7 @@ with src as (
                 regexp_contains(regexp_replace(contextual, r'{{ patterns.negation }}', ''), r'{{ patterns.ambiguity }}')
                 or regexp_contains(contextual, r'\bfor candidates (?:based|living|located)[^.;]{0,110}\b(?:hybrid|onsite|on-site|remote)\b')
                 or regexp_contains(contextual, r'\bremote or [a-z -]{1,30}based\b|\boffice[^.;]{0,20}\bor (?:via )?(?:a )?remote\b')
-                or (regexp_contains(contextual, r'\b(?:remote|onsite|on-site)\b[^.;]{0,100}\b(?:first (?:[a-z0-9]+ )?(?:days?|weeks?|months?|years?)|thereafter|subsequently|then (?:fully )?(?:remote|onsite|on-site))\b')
+                or (regexp_contains(contextual, r'\b(?:remote|onsite|on-site|office-based|in-person)\b[^.;]{0,100}\b(?:first (?:[a-z0-9]+ )?(?:days?|weeks?|months?|years?)|thereafter|subsequently|then (?:fully )?(?:remote|onsite|on-site|office-based|in-person))\b')
                     and not short_onsite_onboarding)
             ) as ambiguous,
             exists (
@@ -148,13 +170,13 @@ with src as (
             role_source and (
                 regexp_contains(regexp_replace(contextual, r'{{ patterns.negation }}', ''), r'{{ patterns.role_hybrid }}')
                 or recurring_mix
-                or (source = 'title' and regexp_contains(contextual, r'\bhybrid$|[([]hybrid[)\]]|^hybrid [-|:]')
+                or (source = 'title' and regexp_contains(contextual, r'(?:^hybrid\s*(?:[-:]|$)|[([]\s*hybrid\s*[)\],:-])')
                     and not regexp_contains(contextual, r'\b(?:no|not) hybrid\b|\bhybrid (?:cloud|systems?|architecture|infrastructure|environments?|solutions?)\b'))
             ) as hybrid,
             role_source and (
                 regexp_contains(regexp_replace(office_context, r'{{ patterns.negation }}', ''), r'{{ patterns.role_office }}')
                 or (source = 'title' and regexp_contains(office_context, r'\b(?:onsite|on-site|in-office)\b'))
-            ) and not regexp_contains(contextual, r'\b(?:occasional|annual|once a year|onboarding|orientation)\b|\b(?:not|no) (?:required (?:to be )?)?(?:onsite|on-site|in-office)\b') as office,
+            ) and not regexp_contains(contextual, r'\b(?:occasional|occasionally|occasions|annual|once a year|onboarding|orientation|as needed|as required|when needed|when required|periodically|periodic|from time to time|ad hoc)\b|\bif (?:this|the) (?:position|role) is (?:listed|designated)\b|\b(?:not|no) (?:required (?:to be )?)?(?:onsite|on-site|in-office|in-person)\b') as office,
             role_source and (
                 regexp_contains(regexp_replace(regexp_replace(contextual, r'{{ patterns.negation }}', ''), r'\bremote (?:systems?|sensing|access|control|support|desktop|monitoring)\b', ''), r'{{ patterns.role_remote }}')
                 or (remote_days is not null and not regexp_contains(contextual, r'{{ patterns.negation }}'))
@@ -183,8 +205,8 @@ with src as (
                     (office and office_days is null) or (remote and remote_days is null)))
                 or (source = 'title' and hybrid and (office or remote)) as conflict,
             negative_remote,
-            if(office and not ambiguous and not negative_remote and not regexp_contains(contextual, r'\b(?:fully|100%|exclusively|only|strictly)\b'), office_days, null) as office_days,
-            if(remote and not ambiguous and not negative_remote and not regexp_contains(contextual, r'\b(?:fully|100%|exclusively|only|strictly)\b'), remote_days, null) as remote_days
+            if(office and not ambiguous and not negative_remote and not regexp_contains(contextual, r'\b(?:fully|100%|exclusively|only|strictly|annual|year|travel|onboarding|orientation)\b'), office_days, null) as office_days,
+            if(remote and not ambiguous and not negative_remote and not regexp_contains(contextual, r'\b(?:fully|100%|exclusively|only|strictly|annual|year|travel|onboarding|orientation)\b'), remote_days, null) as remote_days
           from unnest(_ws_signals)
           where hybrid or office or remote or ambiguous or negative_remote
              or (source in ('serpapi_extension', 'linkedin_preferences') and normalized in ('remote', 'work from home', 'wfh', 'hybrid', 'onsite', 'on-site', 'on site', 'in office', 'office'))
@@ -196,7 +218,29 @@ with src as (
                 cast(null as int64) as office_days, cast(null as int64) as remote_days
               from unnest(_ws_signals)
               cross join unnest(regexp_extract_all(normalized, r'#li-(?:remote|hybrid|onsite|on-site)\b')) tag
-              where role_source)
+              where role_source),
+        -- Company assertions are lower than every actual role/title/tag/metadata
+        -- signal. A strong Unknown conflict or prohibition also blocks fallback.
+        array(select as struct concat('company_policy:', source) as source, text, normalized,
+                -1 as strength,
+                case when regexp_contains(contextual, r'{{ patterns.company_remote }}') and regexp_contains(contextual, r'{{ patterns.company_hybrid }}') then 'Unknown'
+                     when regexp_contains(contextual, r'{{ patterns.company_remote }}') then 'Remote' else 'Hybrid' end as setting,
+                regexp_contains(contextual, r'{{ patterns.company_remote }}') and regexp_contains(contextual, r'{{ patterns.company_hybrid }}') as conflict,
+                false as negative_remote, cast(null as int64) as office_days, cast(null as int64) as remote_days
+              from unnest(_ws_signals)
+              where role_source and source != 'title'
+                and regexp_contains(contextual, r'{{ patterns.company_remote }}|{{ patterns.company_hybrid }}')
+                and not regexp_contains(contextual, r'{{ patterns.company_guard }}')),
+        -- Last-resort duty inference, never a title/skill or missing-WFH default.
+        -- Strong Unknown evidence is ranked above this just like an affirmative
+        -- role arrangement, so unresolved options/transitions stay Unknown.
+        array(select as struct concat('physical_duties:', source) as source, text, normalized,
+                -2 as strength, 'Office' as setting, false as conflict, false as negative_remote,
+                cast(null as int64) as office_days, cast(null as int64) as remote_days
+              from unnest(_ws_signals)
+              where role_source and source != 'title' and not ambiguous and not negative_remote
+                and regexp_contains(contextual, r'{{ patterns.physical_care }}|{{ patterns.physical_operations }}')
+                and not regexp_contains(contextual, r'{{ patterns.physical_guard }}'))
     ) as work_setting_evidence
     from work_setting_signals
 )
@@ -218,7 +262,7 @@ with src as (
     from work_setting_evidence e
 )
 , work_setting_ranked as (
-    select *, (select max(strength) from unnest(e.work_setting_evidence)) as _ws_strength
+    select *, (select max(if(setting != 'Unknown' or conflict or negative_remote, strength, null)) from unnest(e.work_setting_evidence)) as _ws_strength
     from work_setting_compatible_mix e
 )
 , work_setting_compatible as (
@@ -252,8 +296,10 @@ select * except (_ws_strength, _ws_conflict, _ws_setting, _ws_effective_settings
          when _ws_setting is null then 'insufficient_evidence'
          when _ws_strength >= 3 then 'explicit_role_setting'
          when _ws_strength = 2 then 'li_tag_fallback'
+         when _ws_strength = -1 then 'company_policy_inference'
+         when _ws_strength = -2 then 'physical_duties_inference'
          else 'metadata_fallback' end as work_setting_rule,
-    case when coalesce(_ws_conflict, false) or _ws_setting is null then 'low'
+    case when coalesce(_ws_conflict, false) or _ws_setting is null or _ws_strength < 0 then 'low'
          when _ws_strength >= 3 then 'high' else 'medium' end as work_setting_confidence,
     coalesce(_ws_conflict, false) as work_setting_conflict
 from work_setting_resolved

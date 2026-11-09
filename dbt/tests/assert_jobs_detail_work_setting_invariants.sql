@@ -21,7 +21,7 @@ where work_setting is null
    or conflict is null
    or rule is null
    or rule not in ('explicit_role_setting', 'li_tag_fallback', 'metadata_fallback',
-                   'insufficient_evidence', 'conflicting_or_ambiguous_evidence')
+                   'insufficient_evidence', 'conflicting_or_ambiguous_evidence', 'company_policy_inference', 'physical_duties_inference')
    or (conflict and work_setting != 'Unknown')
    or (work_setting = 'Unknown' and confidence != 'low')
    or (work_setting != 'Unknown' and not exists (
@@ -29,12 +29,21 @@ where work_setting is null
    ))
    or (rule in ('metadata_fallback', 'li_tag_fallback') and confidence != 'medium')
    or (rule = 'explicit_role_setting' and confidence != 'high')
+   or (rule in ('company_policy_inference', 'physical_duties_inference') and confidence != 'low')
+   or (rule = 'physical_duties_inference' and work_setting != 'Office')
+   or (rule = 'company_policy_inference' and work_setting not in ('Remote', 'Hybrid'))
+   or (rule = 'physical_duties_inference' and not exists (
+       select 1 from unnest(evidence) e where starts_with(json_value(e, '$.source'), 'physical_duties:')
+   ))
+   or (rule = 'company_policy_inference' and not exists (
+       select 1 from unnest(evidence) e where starts_with(json_value(e, '$.source'), 'company_policy:')
+   ))
    or exists (
        select 1 from unnest(evidence) e
        where json_type(e) != 'object'
           or json_value(e, '$.text') is null or json_value(e, '$.normalized') is null
           or json_value(e, '$.source') is null
-          or safe_cast(json_value(e, '$.strength') as int64) not in (0, 1, 2, 3, 4)
+          or safe_cast(json_value(e, '$.strength') as int64) not in (-2, -1, 0, 1, 2, 3, 4)
           or json_value(e, '$.setting') not in ('Office', 'Hybrid', 'Remote', 'Unknown')
           or json_type(json_query(e, '$.conflict')) != 'boolean'
           or json_type(json_query(e, '$.negative_remote')) != 'boolean'
