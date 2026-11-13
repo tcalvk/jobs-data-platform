@@ -73,5 +73,3 @@
 
 sync:
     remote: "git+https://github.com/tcalvk/jobs-data-platform.git"
-export:
-    auto: true
