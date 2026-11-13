@@ -1,0 +1,142 @@
+version: 2
+unit_tests:
+  - name: jobs_detail_required_experience_contract
+    description: Actual jobs_detail model, with the same literal cases as the offline JS test. BigQuery runs require temporary table permission.
+    model: jobs_detail
+    given:
+      - input: ref('dim_job_listings')
+        format: sql
+        fixture: required_experience_jobs
+      - input: ref('jobs_detail_day')
+        format: sql
+        rows: |
+          select cast(null as string) as job_id,
+                 cast(null as float64) as avg_annual_pay_range,
+                 cast(null as timestamp) as created_at_utc
+          from unnest(array<int64>[]) as empty_row
+    expect:
+      rows:
+        - {job_id: range, required_years_experience: 3}
+        - {job_id: plus, required_years_experience: 3}
+        - {job_id: max, required_years_experience: 5}
+        - {job_id: degree, required_years_experience: 3}
+        - {job_id: degree_global, required_years_experience: 4}
+        - {job_id: optional, required_years_experience: null}
+        - {job_id: preferred_heading, required_years_experience: null}
+        - {job_id: mixed, required_years_experience: 2}
+        - {job_id: none, required_years_experience: 0}
+        - {job_id: none_preferred, required_years_experience: 0}
+        - {job_id: none_conflict, required_years_experience: null}
+        - {job_id: months6, required_years_experience: 0}
+        - {job_id: months12, required_years_experience: 1}
+        - {job_id: months13, required_years_experience: 2}
+        - {job_id: months24, required_years_experience: 2}
+        - {job_id: decimal, required_years_experience: 1}
+        - {job_id: decimal2, required_years_experience: 3}
+        - {job_id: word, required_years_experience: 1}
+        - {job_id: word_range, required_years_experience: 3}
+        - {job_id: ambiguous_number, required_years_experience: null}
+        - {job_id: company_age, required_years_experience: null}
+        - {job_id: history, required_years_experience: null}
+        - {job_id: certification, required_years_experience: null}
+        - {job_id: benefits, required_years_experience: null}
+        - {job_id: title, required_years_experience: 5}
+        - {job_id: seniority, required_years_experience: null}
+        - {job_id: highlight_required, required_years_experience: 4}
+        - {job_id: highlight_preferred, required_years_experience: null}
+        - {job_id: all_highlights, required_years_experience: 6}
+        - {job_id: extension, required_years_experience: 3}
+        - {job_id: linkedin, required_years_experience: 4}
+        - {job_id: empty, required_years_experience: null}
+        - {job_id: degree_unquantified, required_years_experience: null}
+        - {job_id: equivalency, required_years_experience: null}
+        - {job_id: aviation, required_years_experience: 2}
+        - {job_id: flying, required_years_experience: 8}
+        - {job_id: html, required_years_experience: 3}
+        - {job_id: bounded, required_years_experience: null}
+        - {job_id: multi_threshold_paths, required_years_experience: 3}
+        - {job_id: shared_experience, required_years_experience: 3}
+        - {job_id: benefit_highlight, required_years_experience: null}
+        - {job_id: degree_inline_global, required_years_experience: 4}
+        - {job_id: optional_numeric, required_years_experience: null}
+        - {job_id: tens, required_years_experience: 25}
+        - {job_id: cross_bullets, required_years_experience: 3}
+        - {job_id: cross_lines, required_years_experience: 3}
+        - {job_id: bare_mixed, required_years_experience: 2}
+        - {job_id: possessive, required_years_experience: 5}
+        - {job_id: repeated_degree_branch, required_years_experience: 3}
+        - {job_id: qa_preferred_at_least, required_years_experience: null}
+        - {job_id: qa_preferred_minimum, required_years_experience: null}
+        - {job_id: qa_bullet_degree, required_years_experience: 2}
+        - {job_id: qa_own_line_or, required_years_experience: 2}
+        - {job_id: qa_shared_experience, required_years_experience: 5}
+        - {job_id: qa_shared_no_of, required_years_experience: 5}
+        - {job_id: qa_global_suffix, required_years_experience: 10}
+        - {job_id: qa_global_applicants, required_years_experience: 10}
+        - {job_id: qa_eighteen, required_years_experience: 2}
+        - {job_id: qa_thirteen, required_years_experience: 2}
+        - {job_id: qa_nineteen, required_years_experience: 2}
+        - {job_id: qa_optional_conflict, required_years_experience: 2}
+        - {job_id: qa_heading_optional_conflict, required_years_experience: 2}
+        - {job_id: qa_compound, required_years_experience: 2}
+        - {job_id: qa_compound_words, required_years_experience: 2}
+        - {job_id: qa_compound_simultaneous, required_years_experience: 3}
+        - {job_id: qa_compound_optional, required_years_experience: null}
+        - {job_id: qa_compound_no_and, required_years_experience: 2}
+        - {job_id: qa_separate_units, required_years_experience: 1}
+        - {job_id: qa_highlight_own_or, required_years_experience: 2}
+        - {job_id: qa2_comma_shared, required_years_experience: 5}
+        - {job_id: qa2_oxford_shared, required_years_experience: 5}
+        - {job_id: qa2_global_before, required_years_experience: 10}
+        - {job_id: qa2_global_after, required_years_experience: 10}
+        - {job_id: qa2_global_period, required_years_experience: 10}
+        - {job_id: qa2_global_also, required_years_experience: 10}
+        - {job_id: qa2_preferably, required_years_experience: 2}
+        - {job_id: qa2_preference, required_years_experience: 2}
+        - {job_id: qa2_preferences, required_years_experience: 2}
+        - {job_id: qa2_comma_compound, required_years_experience: 2}
+        - {job_id: qa2_oxford_compound, required_years_experience: 2}
+        - {job_id: qa2_unknown_comma_scope, required_years_experience: null}
+        - {job_id: between_spelled, required_years_experience: 3}
+        - {job_id: between_numeric, required_years_experience: 3}
+        - {job_id: between_months, required_years_experience: 2}
+        - {job_id: between_distinct_skills, required_years_experience: 5}
+        - {job_id: between_degree_global, required_years_experience: 2}
+        - {job_id: real_air_products, required_years_experience: 4}
+        - {job_id: real_moneygram, required_years_experience: null}
+        - {job_id: real_frontdoor, required_years_experience: null}
+        - {job_id: real_kla, required_years_experience: 3}
+        - {job_id: real_coworkers, required_years_experience: null}
+        - {job_id: real_trident, required_years_experience: 4}
+        - {job_id: real_joint_commission, required_years_experience: 3}
+        - {job_id: real_walmart_director, required_years_experience: 9}
+        - {job_id: real_walmart_principal, required_years_experience: 4}
+        - {job_id: real_software_engineer5, required_years_experience: 8}
+        - {job_id: real_park_place, required_years_experience: 2}
+        - {job_id: real_usaa, required_years_experience: 6}
+        - {job_id: real_echostar, required_years_experience: 3}
+        - {job_id: real_finance_role, required_years_experience: 2}
+        - {job_id: real_lakeview, required_years_experience: null}
+        - {job_id: real_bonus, required_years_experience: null}
+        - {job_id: real_lanl_background, required_years_experience: 2}
+        - {job_id: real_property_team, required_years_experience: null}
+        - {job_id: real_pilot_age, required_years_experience: null}
+        - {job_id: real_glued_range, required_years_experience: 10}
+        - {job_id: real_literal48, required_years_experience: 48}
+        - {job_id: real_degree_credits, required_years_experience: null}
+        - {job_id: real_location_paths, required_years_experience: null}
+        - {job_id: real_rtx_heritage, required_years_experience: 5}
+        - {job_id: real_kiewit_history, required_years_experience: 10}
+        - {job_id: real_parenthetical_preference, required_years_experience: 5}
+        - {job_id: disclosed_h06, required_years_experience: 5}
+        - {job_id: disclosed_h09, required_years_experience: 1}
+        - {job_id: disclosed_h12, required_years_experience: 5}
+        - {job_id: disclosed_h15, required_years_experience: 5}
+        - {job_id: disclosed_h16, required_years_experience: 3}
+        - {job_id: disclosed_h27, required_years_experience: 10}
+        - {job_id: disclosed_h29, required_years_experience: null}
+        - {job_id: disclosed_h33, required_years_experience: 15}
+        - {job_id: disclosed_h41, required_years_experience: 0}
+        - {job_id: disclosed_h43, required_years_experience: 8}
+        - {job_id: disclosed_h59, required_years_experience: 5}
+        - {job_id: disclosed_h60, required_years_experience: 6}

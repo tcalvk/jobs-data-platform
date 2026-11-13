@@ -1,3 +1,4 @@
+{{ config(sql_header=required_experience_udf()) }}
 {% set patterns = work_setting_patterns() %}
 with src as (
     select * from {{ ref('dim_job_listings') }}
@@ -70,6 +71,10 @@ with src as (
     from derive_dates
 )
 
+, experience_inputs as (
+    select *, parse_required_experience({{ required_experience_inputs() }}) as _experience
+    from add_dims
+)
 , work_setting_inputs as (
     select *, array_concat(
         [struct('title' as source, job_title as text, 3 as strength)],
@@ -87,7 +92,7 @@ with src as (
         if(work_from_home is not null,
            [struct('serpapi_wfh' as source, cast(work_from_home as string) as text, if(work_from_home, 1, 0) as strength)], [])
     ) as _ws_inputs
-    from add_dims
+    from experience_inputs
 )
 , work_setting_normalized as (
     select * except (_ws_inputs),
@@ -304,7 +309,9 @@ select * except (_ws_strength, _ws_conflict, _ws_setting, _ws_effective_settings
     coalesce(_ws_conflict, false) as work_setting_conflict
 from work_setting_resolved
 )
-select * except (work_setting_rule, work_setting_evidence, work_setting_confidence, work_setting_conflict),
+select * except (work_setting_rule, work_setting_evidence, work_setting_confidence, work_setting_conflict, _experience),
+    _experience.years as required_years_experience,
+    to_json(struct(_experience.status as status, _experience.evidence as evidence)) as required_years_experience_metadata,
     to_json(struct(
         work_setting_rule as rule,
         work_setting_evidence as evidence,
