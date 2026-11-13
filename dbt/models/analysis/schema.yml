@@ -30,6 +30,33 @@ models:
         data_tests:
           - not_null
       - name: first_seen_at_utc
+        description: Earliest retained dimension observation; experience extraction does not merge later snapshots or change dimension deduplication.
+        data_tests:
+          - not_null
+      - name: required_years_experience
+        data_type: int64
+        description: >
+          Explicit required applicant experience, never inferred from seniority.
+          Range lower bound (including between X and Y); simultaneous thresholds use maximum; quantified degree
+          alternatives use minimum valid path. Decimal years round up. Months below
+          12 map to zero; otherwise months/12 rounds up. Explicit no experience is
+          zero. A single compound year-and-month duration is combined before rounding;
+          separate skill requirements still use the maximum, never their sum.
+          Unspecified and unresolved ambiguous evidence are NULL. A separate
+          mandatory minimum can dominate an unquantified alternative when a
+          fully quantified valid path bounds that alternative below the minimum.
+          Inputs are description, all heading-scoped highlights, explicit numeric
+          title durations, SerpAPI extensions and LinkedIn fit-level metadata.
+      - name: required_years_experience_metadata
+        data_type: json
+        description: >
+          Audit object with status (explicit_requirement, unspecified, ambiguous)
+          and evidence array of source, normalized text excerpt, resolved years and
+          rule/status. Optional numeric evidence is retained as ignored_optional.
+          Employer/coworker history, age, aggregate work/education totals and bonus
+          eligibility are retained as ignored_non_applicant. Degree-credit arithmetic
+          and location-dependent thresholds remain ambiguous rather than inferred.
+          Bounded English parser, not a general natural-language inference engine.
         data_tests:
           - not_null
       - name: last_seen_at_utc
