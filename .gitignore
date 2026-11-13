@@ -24,6 +24,7 @@ include/airflow_variables.dev.json
 docker-compose.override.dev.yaml
 .venv
 dbt/requirements.txt
+plans/
 
 # dbt
 dbt/target/
@@ -32,3 +33,10 @@ dbt/logs/
 
 # streamlit_app
 streamlit_app/.streamlit/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*

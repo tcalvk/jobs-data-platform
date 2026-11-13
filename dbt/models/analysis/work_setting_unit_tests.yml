@@ -1,0 +1,242 @@
+version: 2
+unit_tests:
+  - name: jobs_detail_work_setting_role_contract
+    description: Actual inline model over literal input mocks. Compile or run read-only SELECT validation; dbt test adapter may materialize temporary tables.
+    model: jobs_detail
+    given:
+      - input: ref('dim_job_listings')
+        format: sql
+        fixture: work_setting_jobs
+      - input: ref('jobs_detail_day')
+        format: sql
+        rows: |
+          select cast(null as string) as job_id,
+                 cast(null as float64) as avg_annual_pay_range,
+                 cast(null as timestamp) as created_at_utc
+          from unnest(array<int64>[]) as empty_row
+    expect:
+      rows:
+        - {job_id: intellipro, work_setting: Hybrid}
+        - {job_id: gdit, work_setting: Hybrid}
+        - {job_id: walmart, work_setting: Office}
+        - {job_id: fusionauth, work_setting: Unknown}
+        - {job_id: technical_hybrid, work_setting: Unknown}
+        - {job_id: technical_remote, work_setting: Unknown}
+        - {job_id: policy, work_setting: Unknown}
+        - {job_id: geo, work_setting: Remote}
+        - {job_id: travel, work_setting: Remote}
+        - {job_id: annual, work_setting: Remote}
+        - {job_id: onboarding, work_setting: Remote}
+        - {job_id: tag_conflict, work_setting: Unknown}
+        - {job_id: tag_only, work_setting: Remote}
+        - {job_id: tag_overridden, work_setting: Office}
+        - {job_id: tag_same_sentence, work_setting: Office}
+        - job_id: 'null'
+          work_setting: Unknown
+          work_setting_metadata:
+            rule: insufficient_evidence
+            evidence: []
+            confidence: low
+            conflict: false
+        - {job_id: false_flag, work_setting: Unknown}
+        - job_id: true_flag
+          work_setting: Remote
+          work_setting_metadata:
+            rule: metadata_fallback
+            evidence:
+              - {source: serpapi_wfh, text: 'true', normalized: 'true', strength: 1, setting: Remote, conflict: false, negative_remote: false, office_days: null, remote_days: null}
+            confidence: medium
+            conflict: false
+        - {job_id: title_remote, work_setting: Remote}
+        - {job_id: title_office, work_setting: Office}
+        - {job_id: title_hybrid, work_setting: Hybrid}
+        - {job_id: title_override, work_setting: Office}
+        - {job_id: negative, work_setting: Unknown}
+        - {job_id: experience, work_setting: Remote}
+        - {job_id: strong_conflict, work_setting: Unknown}
+        - {job_id: temporal, work_setting: Unknown}
+        - {job_id: conditional, work_setting: Unknown}
+        - {job_id: unicode, work_setting: Remote}
+        - {job_id: schedule, work_setting: Hybrid}
+        - {job_id: alternating, work_setting: Hybrid}
+        - {job_id: extension, work_setting: Remote}
+        - {job_id: not_exact, work_setting: Unknown}
+        - {job_id: extension_conflict, work_setting: Unknown}
+        - {job_id: li_metadata, work_setting: Hybrid}
+        - {job_id: highlight, work_setting: Hybrid}
+        - {job_id: benefits, work_setting: Unknown}
+        - {job_id: microsoft, work_setting: Unknown}
+        - {job_id: negative_title, work_setting: Unknown}
+        - {job_id: locality, work_setting: Unknown}
+        - {job_id: negated_options, work_setting: Office}
+        - {job_id: location_options, work_setting: Unknown}
+        # Approved v2 company-wide assertion fallback, not generic offered benefits.
+        - job_id: company_remote
+          work_setting: Remote
+          work_setting_metadata:
+            rule: company_policy_inference
+            confidence: low
+            conflict: false
+            evidence:
+              - {source: 'company_policy:description', text: 'We are a fully remote company', normalized: 'we are a fully remote company', strength: -1, setting: Remote, conflict: false, negative_remote: false, office_days: null, remote_days: null}
+        - {job_id: company_hybrid, work_setting: Unknown}
+        - {job_id: technical_fully_remote, work_setting: Unknown}
+        - {job_id: not_hybrid, work_setting: Remote}
+        - {job_id: remote_first_recurring, work_setting: Hybrid}
+        - {job_id: two_day_retreat, work_setting: Remote}
+        - {job_id: title_labels_conflict, work_setting: Unknown}
+        - {job_id: office_not_required, work_setting: Unknown}
+        - {job_id: office_negated_role, work_setting: Unknown}
+        - {job_id: remote_office_not_required, work_setting: Remote}
+        - {job_id: temporal_remote_first, work_setting: Unknown}
+        - {job_id: temporal_office_first, work_setting: Unknown}
+        - {job_id: hybrid_partial_office, work_setting: Hybrid}
+        - {job_id: quantified_split_mix, work_setting: Hybrid}
+        - {job_id: technical_powertrain, work_setting: Unknown}
+        - {job_id: technical_role_sensing, work_setting: Unknown}
+        - {job_id: hybrid_full_office_conflict, work_setting: Unknown}
+        - {job_id: remote_partial_office_conflict, work_setting: Unknown}
+        - {job_id: unquantified_split_conflict, work_setting: Unknown}
+        - {job_id: impossible_weekly_mix, work_setting: Unknown}
+        - {job_id: same_sentence_hybrid_conflict, work_setting: Unknown}
+        - {job_id: full_remote_weekly_conflict, work_setting: Unknown}
+        - {job_id: same_sentence_impossible_mix, work_setting: Unknown}
+        - {job_id: unrelated_remote_people, work_setting: Office}
+        - {job_id: office_not_require_you, work_setting: Unknown}
+        - {job_id: office_not_require_candidates, work_setting: Unknown}
+        - {job_id: office_not_require_working, work_setting: Unknown}
+        - {job_id: office_passive_not_required, work_setting: Unknown}
+        - {job_id: office_passive_not_mandatory, work_setting: Unknown}
+        - {job_id: office_not_required_to_work, work_setting: Unknown}
+        - {job_id: title_prohibited_remote, work_setting: Unknown}
+        - {job_id: title_prohibited_remote_allowed, work_setting: Unknown}
+        - {job_id: wfh_prohibited_remote, work_setting: Unknown}
+        - {job_id: metadata_prohibited_remote, work_setting: Unknown}
+        - {job_id: metadata_negated_office, work_setting: Unknown}
+        - {job_id: negative_office_positive_remote, work_setting: Remote}
+        - {job_id: negative_office_positive_office, work_setting: Office}
+        - {job_id: remote_experience_not_required, work_setting: Remote}
+        - {job_id: remote_unavailable_positive_office, work_setting: Office}
+        - {job_id: onboarding_remote_then_office, work_setting: Unknown}
+        - {job_id: onboarding_office_then_remote_month, work_setting: Unknown}
+        - {job_id: onboarding_short_remote_then_office, work_setting: Unknown}
+        - {job_id: onboarding_short_office_then_remote, work_setting: Remote}
+        - {job_id: quantified_imperative_impossible, work_setting: Unknown}
+        - {job_id: quantified_imperative_compatible, work_setting: Hybrid}
+        - {job_id: quantified_imperative_split_compatible, work_setting: Hybrid}
+        - {job_id: remote_not_required_quantified, work_setting: Unknown}
+        - {job_id: remote_not_required_quantified_office, work_setting: Office}
+        - {job_id: remote_not_necessary_quantified, work_setting: Unknown}
+        - {job_id: remote_not_necessary_quantified_office, work_setting: Office}
+        - {job_id: remote_passive_not_required_quantified, work_setting: Unknown}
+        - {job_id: remote_passive_not_required_quantified_office, work_setting: Office}
+        - {job_id: wfh_passive_neutral, work_setting: Unknown}
+        - {job_id: wfh_passive_neutral_office, work_setting: Office}
+        - {job_id: remote_obligation_active_neutral, work_setting: Unknown}
+        - {job_id: remote_obligation_active_neutral_office, work_setting: Office}
+        - {job_id: remote_obligation_neutral_positive, work_setting: Remote}
+        - {job_id: office_obligation_neutral_quantified, work_setting: Unknown}
+        - {job_id: office_obligation_neutral_no_mix, work_setting: Remote}
+        - {job_id: remote_permission_quantified_title, work_setting: Unknown}
+        - {job_id: remote_permission_unavailable_title, work_setting: Unknown}
+        - {job_id: remote_neutral_metadata, work_setting: Remote}
+        - {job_id: remote_passive_work_neutral, work_setting: Unknown}
+        - {job_id: remote_passive_work_neutral_office, work_setting: Office}
+        - {job_id: not_structured_remote, work_setting: Office}
+        - {job_id: not_structured_remote_only, work_setting: Unknown}
+        - {job_id: friday_home_mix, work_setting: Hybrid}
+        - {job_id: four_and_one_mix, work_setting: Hybrid}
+        - {job_id: hybrid_title_delimiter, work_setting: Hybrid}
+        - {job_id: explicit_in_person, work_setting: Office}
+        - {job_id: remote_opportunity, work_setting: Remote}
+        - {job_id: contextual_hybrid_model, work_setting: Hybrid}
+        - {job_id: office_based, work_setting: Office}
+        - {job_id: not_office_based, work_setting: Unknown}
+        - {job_id: friday_annual_visit, work_setting: Remote}
+        - {job_id: generic_if_remote_menu, work_setting: Unknown}
+        - {job_id: company_clear_hybrid, work_setting: Hybrid}
+        - {job_id: company_role_override, work_setting: Office}
+        - {job_id: company_metadata_override, work_setting: Remote}
+        - {job_id: company_false_flag, work_setting: Remote}
+        - {job_id: company_conflict, work_setting: Unknown}
+        - {job_id: company_role_options, work_setting: Unknown}
+        - {job_id: company_role_temporal, work_setting: Unknown}
+        - {job_id: company_policy_menu, work_setting: Unknown}
+        - {job_id: company_technical_model, work_setting: Unknown}
+        - job_id: physical_bedside
+          work_setting: Office
+          work_setting_metadata:
+            rule: physical_duties_inference
+            confidence: low
+            conflict: false
+            evidence:
+              - {source: 'physical_duties:description', text: 'Provides direct patient care in the hospital setting', normalized: 'provides direct patient care in the hospital setting', strength: -2, setting: Office, conflict: false, negative_remote: false, office_days: null, remote_days: null}
+        - {job_id: physical_injection, work_setting: Office}
+        - {job_id: physical_machine, work_setting: Office}
+        - {job_id: physical_aircraft, work_setting: Office}
+        - {job_id: physical_custody, work_setting: Office}
+        - {job_id: physical_title_only, work_setting: Unknown}
+        - {job_id: physical_prior_experience, work_setting: Unknown}
+        - {job_id: physical_negated, work_setting: Unknown}
+        - {job_id: physical_hypothetical, work_setting: Unknown}
+        - {job_id: physical_simulation, work_setting: Unknown}
+        - {job_id: physical_virtual_aircraft, work_setting: Unknown}
+        - {job_id: physical_telehealth, work_setting: Unknown}
+        - {job_id: physical_remote_machine, work_setting: Unknown}
+        - {job_id: physical_generic_employer, work_setting: Unknown}
+        - {job_id: physical_remote_override, work_setting: Remote}
+        - {job_id: physical_hybrid_override, work_setting: Hybrid}
+        - {job_id: physical_metadata_override, work_setting: Remote}
+        - {job_id: physical_company_override, work_setting: Remote}
+        - {job_id: physical_options_blocked, work_setting: Unknown}
+        - {job_id: physical_temporal_blocked, work_setting: Unknown}
+        - {job_id: physical_false_flag, work_setting: Office}
+        - {job_id: office_based_options, work_setting: Unknown}
+        - {job_id: office_based_temporal, work_setting: Unknown}
+        - {job_id: remote_interview_onboarding, work_setting: Remote}
+        - {job_id: physical_simulate_only, work_setting: Unknown}
+        - {job_id: physical_teleoperated, work_setting: Unknown}
+        - {job_id: physical_would_duty, work_setting: Unknown}
+        - {job_id: office_as_needed, work_setting: Unknown}
+        - {job_id: remote_over_as_needed, work_setting: Remote}
+        - {job_id: office_periodic, work_setting: Unknown}
+        - {job_id: remote_monthly_cadence, work_setting: Unknown}
+        - {job_id: remote_yearly_cadence, work_setting: Unknown}
+        - {job_id: onsite_weekly_remote_monthly, work_setting: Unknown}
+        - {job_id: alternatives_in_person_remote, work_setting: Unknown}
+        - {job_id: alternatives_remote_in_person, work_setting: Unknown}
+        - {job_id: alternatives_hybrid_in_person, work_setting: Unknown}
+        - {job_id: physical_employer_hospital, work_setting: Unknown}
+        - {job_id: physical_client_hospital, work_setting: Unknown}
+        - {job_id: physical_team_support, work_setting: Unknown}
+        - {job_id: physical_partner_lift, work_setting: Unknown}
+        - {job_id: interview_only_in_person, work_setting: Unknown}
+        - {job_id: remote_interview_in_person, work_setting: Remote}
+        - {job_id: remote_training_in_person, work_setting: Remote}
+        - {job_id: onsite_days_lead_remote, work_setting: Hybrid}
+        - {job_id: in_office_days_lead_remote, work_setting: Hybrid}
+        - {job_id: hybrid_title_comma, work_setting: Hybrid}
+        - {job_id: hybrid_title_colon, work_setting: Hybrid}
+        - {job_id: friday_onsite_unquantified, work_setting: Unknown}
+        - {job_id: company_vs_li_remote, work_setting: Remote}
+        - {job_id: physical_vs_li_remote, work_setting: Remote}
+        - {job_id: hybrid_with_paid_training, work_setting: Hybrid}
+        - {job_id: hybrid_during_training, work_setting: Hybrid}
+        - {job_id: onsite_role_paid_training, work_setting: Office}
+        - {job_id: onsite_role_training_budget, work_setting: Office}
+        - {job_id: alternatives_in_person_comma, work_setting: Unknown}
+        - {job_id: alternatives_in_person_semicolon, work_setting: Unknown}
+        - {job_id: alternatives_in_person_paren, work_setting: Unknown}
+        - {job_id: alternatives_remote_comma, work_setting: Unknown}
+        - {job_id: must_be_onsite, work_setting: Office}
+        - {job_id: candidates_must_be_onsite, work_setting: Office}
+        - {job_id: requires_you_be_onsite, work_setting: Office}
+        - {job_id: will_be_onsite_days, work_setting: Office}
+        - {job_id: hybrid_title_automotive, work_setting: Unknown}
+        - {job_id: office_monthly_mix, work_setting: Unknown}
+        - {job_id: remote_annual_meetings, work_setting: Remote}
+        - {job_id: lead_month_mix, work_setting: Unknown}
+        - {job_id: lead_quarter_mix, work_setting: Unknown}
+        - {job_id: lead_week_control, work_setting: Hybrid}
+        - {job_id: onsite_semicolon_wfh, work_setting: Unknown}
+        - {job_id: onsite_period_wfh, work_setting: Unknown}
